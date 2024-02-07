@@ -73,6 +73,7 @@ setup(
     package_data={
       'tommy_utils': ['tommy_utils/data/*'],
       },
+    include_package_data=True,
     python_requires=">=3.9",
     license="GNU General Public License Version 2",
     # install_requires=install_requires,
