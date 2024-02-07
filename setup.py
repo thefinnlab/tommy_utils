@@ -59,8 +59,8 @@ def get_version(rel_path):
 version = get_version("utils/__init__.py")
 print("Loaded version ",version)
 
-if sys.version_info[:2] < (3, 7):
-    raise RuntimeError("Python version >=3.7 required.")
+if sys.version_info[:2] < (3, 9):
+    raise RuntimeError("Python version >=3.9 required.")
 
 readme = open("README.md").read()
 setup(
