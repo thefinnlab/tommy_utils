@@ -1,7 +1,7 @@
-name: asynchrony
+name: tommy_utils
 channels:
-  - anaconda
-  - brainiak
+  - pytorch
+  - huggingface
   - conda-forge
   - defaults
 dependencies:
@@ -9,7 +9,6 @@ dependencies:
   - pytorch
   - nibabel
   - nilearn
-  - jupyter
   - seaborn=0.13.0
   - gensim
   - nltk
@@ -17,7 +16,6 @@ dependencies:
   - librosa
   - pandas=1.2.2
   - matplotlib
-  - seaborn==0.13.0
   - regex
   - moviepy
   - mesalib

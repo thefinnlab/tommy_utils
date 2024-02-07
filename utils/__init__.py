@@ -1,6 +1,5 @@
 """
-HTTPie: modern, user-friendly command-line HTTP client for the API era.
-
+Utils that Tommy uses for projects
 """
 
 from . import (
