@@ -40,7 +40,7 @@ ENCODING_FEATURES = {
 
 # get path of the encoding_utils file --> find the relative path of the phonemes file
 FILE_DIR = os.path.dirname(os.path.realpath(__file__))
-PHONEMES_FN = os.path.join(FILE_DIR, 'cmu_phonemes/cmudict-0.7b.phones.txt')
+PHONEMES_FN = os.path.join(FILE_DIR, 'data/cmudict-0.7b.phones.txt')
 CMU_PHONEMES = pd.read_csv(PHONEMES_FN, header=None, names=['phoneme', 'type'], sep="\t")
 
 def get_modality_features(modality):

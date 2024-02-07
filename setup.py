@@ -70,6 +70,9 @@ setup(
     author="Tommy Botch, FinnLab, Dartmouth College",
     author_email="tlb.gr@dartmouth.edu",
     packages=find_packages(),
+    package_data={
+      'tommy_utils': ['tommy_utils/data/*'],
+      },
     python_requires=">=3.9",
     license="GNU General Public License Version 2",
     # install_requires=install_requires,
