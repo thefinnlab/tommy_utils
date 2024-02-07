@@ -56,7 +56,7 @@ def get_version(rel_path):
     else:
         raise RuntimeError("Unable to find version string.")
 
-version = get_version("utils/__init__.py")
+version = get_version("tommy_utils/__init__.py")
 print("Loaded version ",version)
 
 if sys.version_info[:2] < (3, 9):
