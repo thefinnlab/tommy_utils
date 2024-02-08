@@ -73,6 +73,7 @@ setup(
     package_data={
       'tommy_utils': ['./data/*.txt'],
       },
+    dependency_links=['https://github.com/thefinnlab/surfplot.git'],
     python_requires=">=3.9",
     license="GNU General Public License Version 2",
     # install_requires=install_requires,
