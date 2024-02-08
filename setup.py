@@ -71,7 +71,7 @@ setup(
     author_email="tlb.gr@dartmouth.edu",
     packages=find_packages(),
     package_data={
-      'tommy_utils': ['./data/*'],
+      'tommy_utils': ['./data/*.txt'],
       },
     python_requires=">=3.9",
     license="GNU General Public License Version 2",
