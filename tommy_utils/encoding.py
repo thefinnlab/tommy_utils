@@ -441,7 +441,7 @@ def get_train_test_splits(x, y, train_indices, test_indices, precision='float32'
 	return X_train, Y_train, X_test, Y_test
 
 def build_encoding_pipeline(X, Y, feature_space_infos=None, inner_folds='loo', delays=[1,2,3,4], 
-	n_iter=20, solver="random_search", n_jobs=None):
+	n_iter=20, solver="random_search", alphas=np.logspace(1, 20, 20), n_jobs=None):
 	'''
 	Builds an encoding model given two lists of equal length:
 		- X: predictors -->
@@ -465,7 +465,7 @@ def build_encoding_pipeline(X, Y, feature_space_infos=None, inner_folds='loo', d
 
 	# for multiple kernel ridge
 	N_ITER = n_iter # --> should be higher remember to change
-	ALPHAS = np.logspace(-10, 10, 42)
+	ALPHAS = alphas
 	RANDOM_STATE = 42
 
 	# ensure that X and Y are the same length
@@ -498,12 +498,12 @@ def build_encoding_pipeline(X, Y, feature_space_infos=None, inner_folds='loo', d
 		# We use 20 random-search iterations to have a reasonably fast example.
 
 		## TLB --> TRY ADDING IN RETURN_WEIGHTS AND SEE WHAT HAPPENS
+		solver_function = MultipleKernelRidgeCV.ALL_SOLVERS[solver]
+
 		if solver == 'random_search':
-			solver_function = MultipleKernelRidgeCV.ALL_SOLVERS[solver]
 			solver_params = dict(n_iter=N_ITER, alphas=ALPHAS, n_targets_batch=N_TARGETS_BATCH,
 				n_alphas_batch=N_ALPHAS_BATCH, n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
 		elif solver == 'hyper_gradient':
-			solver_function = MultipleKernelRidgeCV.ALL_SOLVERS[solver]
 			solver_params = dict(max_iter=N_ITER, n_targets_batch=N_TARGETS_BATCH, tol=1e-3,
 				initial_deltas="ridgecv", max_iter_inner_hyper=1, hyper_gradient_method="direct")
 
