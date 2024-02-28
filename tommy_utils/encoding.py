@@ -379,7 +379,6 @@ def generate_leave_one_run_out(n_samples, run_onsets, random_state=None,
 	all_val_runs = np.array(
 		[random_state.permutation(n_runs) for _ in range(n_runs_out)])
 
-	all_samples = np.arange(n_samples)
 	runs = np.split(all_samples, run_onsets[1:])
 	if any(len(run) == 0 for run in runs):
 		raise ValueError("Some runs have no samples. Check that run_onsets "
@@ -476,7 +475,7 @@ def build_encoding_pipeline(X, Y, feature_space_infos=None, inner_folds='loo', d
 	# scaler --> zscores the predictors
 	# delayer --> estimates the HRF
 	outer_cv = KFold(n_splits=len(X))
-	scaler = StandardScaler(with_mean=True, with_std=True)
+	scaler = StandardScaler(with_mean=True, with_std=False)
 	delayer = Delayer(delays=delays) # delays are in indices --> needs to be scales to TRs
 	
 	# Learn the regularization on the inner fold
@@ -485,6 +484,10 @@ def build_encoding_pipeline(X, Y, feature_space_infos=None, inner_folds='loo', d
 		n_samples = np.concatenate(X).shape[0]
 		run_lengths = [len(x) for x in X]
 		run_onsets = np.cumsum(np.concatenate([[0], run_lengths]))[:-1]
+
+		print (f'Samples: {n_samples}')
+		print (f'Run lengths: {run_lengths}')
+		print (run_onsets)
 
 		# now make the cross validation with leave one run out
 		inner_cv = generate_leave_one_run_out(n_samples, run_onsets)
@@ -534,6 +537,7 @@ def build_encoding_pipeline(X, Y, feature_space_infos=None, inner_folds='loo', d
 		pipeline = make_pipeline(scaler, delayer, ridge)
 
 	return outer_cv, pipeline
+
 ##################################
 ##### DOWNSAMPLING FUNCTIONS #####
 ##################################

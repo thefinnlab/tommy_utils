@@ -35,24 +35,26 @@ def draw_umap(data, colors, n_neighbors=15, min_dist=0.1, random_state=42, n_com
 	
 	return fig, ax
 
-def plot_colorbar(vmax, values, direction='horizontal', cmap='RdBu_r', out_fn=None):
+def plot_colorbar(vmin, vmax, nticks=5, direction='horizontal', cmap='RdBu_r', out_fn=None):
 	
-	fig = plt.figure()
-	
-	divnorm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
-	psm = plt.pcolormesh([-cbar_betas, cbar_betas], norm=divnorm, cmap=cmap)
-	plt.clf()
-	
-	# xloc, yloc, size x, size y
-	if direction == 'horizontal':
-		cbar_ax = fig.add_axes([0.5, 0, 0.6, 0.05])
-	elif direction == 'vertical':
-		cbar_ax = fig.add_axes([0.5, 0, 0.05, 0.6])
-	
-	fig.colorbar(psm, cax=cbar_ax, orientation=direction, ticks=ticker.MaxNLocator(nbins=5))
-	
-	if out_fn:
-		plt.savefig(out_fn, bbox_inches='tight', transparent=True)
+    fig = plt.figure()
+    
+    values = np.random.randn(10)
+    
+    divnorm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
+    psm = plt.pcolormesh([-values, values], norm=divnorm, cmap=cmap)
+    plt.clf()
+    
+    # xloc, yloc, size x, size y
+    if direction == 'horizontal':
+        cbar_ax = fig.add_axes([0.5, 0, 0.6, 0.05])
+    elif direction == 'vertical':
+        cbar_ax = fig.add_axes([0.5, 0, 0.05, 0.6])
+    
+    fig.colorbar(psm, cax=cbar_ax, orientation=direction, ticks=ticker.MaxNLocator(nbins=nticks))
+    
+    if out_fn:
+        plt.savefig(out_fn, bbox_inches='tight', transparent=True)
 
 # for "pairs" of any length
 def chunkwise(t, size=2):
