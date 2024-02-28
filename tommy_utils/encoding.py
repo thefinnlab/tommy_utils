@@ -346,12 +346,14 @@ def create_spectral_features(audio, sr, n_fft = 1024, hop_length=512, n_mels=128
 ##### MODEL SETUP FUNCTIONS ######
 ##################################
 
-def generate_leave_one_run_out(n_samples, run_onsets, random_state=None,
-							   n_runs_out=1):
+from sklearn.utils.validation import check_random_state
+
+def generate_leave_one_run_out(n_samples, run_onsets, random_state=None, n_runs_out=1, 
+	train_mean=False, val_mean=False):
 	"""Generate a leave-one-run-out split for cross-validation.
-
+	
 	Generates as many splits as there are runs.
-
+	
 	Parameters
 	----------
 	n_samples : int
@@ -362,7 +364,7 @@ def generate_leave_one_run_out(n_samples, run_onsets, random_state=None,
 		Random state for the shuffling operation.
 	n_runs_out : int
 		Number of runs to leave out in the validation set. Default to one.
-
+	
 	Yields
 	------
 	train : array of int of shape (n_samples_train, )
@@ -371,24 +373,50 @@ def generate_leave_one_run_out(n_samples, run_onsets, random_state=None,
 		Validation set indices.
 	"""
 	random_state = check_random_state(random_state)
-
+	
 	n_runs = len(run_onsets)
+	
 	# With permutations, we are sure that all runs are used as validation runs.
 	# However here for n_runs_out > 1, a run can be chosen twice as validation
 	# in the same split.
-	all_val_runs = np.array(
-		[random_state.permutation(n_runs) for _ in range(n_runs_out)])
+	# all_val_runs = np.array(
+	#     [random_state.permutation(n_runs) for _ in range(n_runs_out)])
 
+	if n_runs_out >= len(run_onsets):
+		raise ValueError("More runs requested for validation than there are "
+						 "total runs. Make sure that n_runs_out is less than "
+						 "than the number of runs (e.g., len(run_onsets)).")
+
+	all_val_runs = np.array(list(itertools.combinations(range(n_runs), n_runs_out)))
+	all_val_runs = random_state.permutation(all_val_runs)
+
+	print (f'Total number of validation runs: {len(all_val_runs)}')
+	
+	all_samples = np.arange(n_samples)
 	runs = np.split(all_samples, run_onsets[1:])
+	
 	if any(len(run) == 0 for run in runs):
 		raise ValueError("Some runs have no samples. Check that run_onsets "
 						 "does not include any repeated index, nor the last "
 						 "index.")
+	
+	for val_runs in all_val_runs: #.T:
 
-	for val_runs in all_val_runs.T:
-		train = np.hstack(
-			[runs[jj] for jj in range(n_runs) if jj not in val_runs])
-		val = np.hstack([runs[jj] for jj in range(n_runs) if jj in val_runs])
+		train = [runs[jj] for jj in range(n_runs) if jj not in val_runs]
+		val = [runs[jj] for jj in range(n_runs) if jj in val_runs]
+
+		assert (len(val) == n_runs_out)
+
+		if train_mean:
+			train = np.mean(train, axis=0)
+		else:
+			train = np.hstack(train)
+
+		if val_mean:
+			val = np.mean(val, axis=0)
+		else:
+			val = np.hstack(val)
+		
 		yield train, val
 
 def load_banded_features(fns, feature_names):
@@ -439,7 +467,7 @@ def get_train_test_splits(x, y, train_indices, test_indices, precision='float32'
 	
 	return X_train, Y_train, X_test, Y_test
 
-def build_encoding_pipeline(X, Y, feature_space_infos=None, inner_folds='loo', delays=[1,2,3,4], 
+def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,2,3,4], 
 	n_iter=20, solver="random_search", alphas=np.logspace(1, 20, 20), n_jobs=None):
 	'''
 	Builds an encoding model given two lists of equal length:
@@ -474,26 +502,26 @@ def build_encoding_pipeline(X, Y, feature_space_infos=None, inner_folds='loo', d
 	# outer_cv --> number of folds to do over the data
 	# scaler --> zscores the predictors
 	# delayer --> estimates the HRF
-	outer_cv = KFold(n_splits=len(X))
+	# outer_cv = KFold(n_splits=len(X))
 	scaler = StandardScaler(with_mean=True, with_std=False)
 	delayer = Delayer(delays=delays) # delays are in indices --> needs to be scales to TRs
 	
-	# Learn the regularization on the inner fold
+	# # Learn the regularization on the inner fold
+	# n_samples = np.concatenate(X).shape[0]
+	# run_lengths = [len(x) for x in X]
+	# run_onsets = np.cumsum(np.concatenate([[0], run_lengths]))[:-1]
 
-	if inner_folds == 'loo':
-		n_samples = np.concatenate(X).shape[0]
-		run_lengths = [len(x) for x in X]
-		run_onsets = np.cumsum(np.concatenate([[0], run_lengths]))[:-1]
+	# print (f'Number of samples: {n_samples}')
+	# print (f'Run lengths: {run_lengths}')
 
-		print (f'Samples: {n_samples}')
-		print (f'Run lengths: {run_lengths}')
-		print (run_onsets)
+	# if inner_folds == 'loo':
+	# 	# now make the cross validation with leave one run out
+	# 	inner_cv = generate_leave_one_run_out(n_samples, run_onsets)
+	# 	inner_cv = check_cv(inner_cv)  # copy the cross-validation splitter into a reusable list
+	# elif inner_folds == 'loo_mean':
 
-		# now make the cross validation with leave one run out
-		inner_cv = generate_leave_one_run_out(n_samples, run_onsets)
-		inner_cv = check_cv(inner_cv)  # copy the cross-validation splitter into a reusable list
-	else:
-		inner_cv = KFold(n_splits=inner_folds)
+	# else:
+	# 	inner_cv = KFold(n_splits=inner_folds)
 
 	# if feature info is provided we have multiple feature spaces and use
 	# banded ridge
@@ -536,7 +564,8 @@ def build_encoding_pipeline(X, Y, feature_space_infos=None, inner_folds='loo', d
 		
 		pipeline = make_pipeline(scaler, delayer, ridge)
 
-	return outer_cv, pipeline
+	# return outer_cv, pipeline
+	return pipeline
 
 ##################################
 ##### DOWNSAMPLING FUNCTIONS #####
