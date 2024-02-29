@@ -469,7 +469,8 @@ def get_train_test_splits(x, y, train_indices, test_indices, precision='float32'
 
 def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,2,3,4], 
 	n_iter=20, n_targets_batch=200, n_alphas_batch=5, n_targets_batch_refit=200,
-	solver="random_search", alphas=np.logspace(1, 20, 20), n_jobs=None):
+	Y_in_cpu=False, force_kernel_cpu=False, force_column_cpu=False, solver="random_search", 
+	alphas=np.logspace(1, 20, 20), n_jobs=None):
 	'''
 	Builds an encoding model given two lists of equal length:
 		- X: predictors -->
@@ -540,10 +541,10 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 				initial_deltas="ridgecv", max_iter_inner_hyper=1, hyper_gradient_method="direct")
 
 		mkr_model = MultipleKernelRidgeCV(kernels="precomputed", solver=solver,
-										  solver_params=solver_params, cv=inner_cv)
+										  solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu)
 
 		# Now setup the pipeline for each kernel
-		preprocess_pipeline = make_pipeline(scaler, delayer, Kernelizer(kernel="linear"))
+		preprocess_pipeline = make_pipeline(scaler, delayer, Kernelizer(kernel="linear", force_cpu=force_kernel_cpu))
 
 		# preprocessing for each feature space
 		kernelizers_tuples = [
@@ -552,7 +553,7 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 		]
 
 		# put them together
-		column_kernelizer = ColumnKernelizer(kernelizers_tuples, n_jobs=n_jobs)
+		column_kernelizer = ColumnKernelizer(kernelizers_tuples, n_jobs=n_jobs, force_cpu=force_column_cpu)
 
 		# make the pipeline
 		pipeline = make_pipeline(column_kernelizer, mkr_model)
@@ -561,7 +562,7 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 		solver_params=dict(n_targets_batch=N_TARGETS_BATCH, n_alphas_batch=N_ALPHAS_BATCH, 
 						   n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
 		
-		ridge = KernelRidgeCV(kernel="linear", alphas=ALPHAS, cv=inner_cv)
+		ridge = KernelRidgeCV(kernel="linear", alphas=ALPHAS, cv=inner_cv, Y_in_cpu=Y_in_cpu)
 		
 		pipeline = make_pipeline(scaler, delayer, ridge)
 
