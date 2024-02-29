@@ -401,10 +401,13 @@ def generate_leave_one_run_out(n_samples, run_onsets, random_state=None, n_runs_
 	
 	for val_runs in all_val_runs: #.T:
 
-		train = [runs[jj] for jj in range(n_runs) if jj not in val_runs]
-		val = [runs[jj] for jj in range(n_runs) if jj in val_runs]
+		train = np.hstack(
+			[runs[jj] for jj in range(n_runs) if jj not in val_runs])
 
-		# assert (len(val) == n_runs_out)
+		val = np.hstack(
+			[runs[jj] for jj in range(n_runs) if jj in val_runs])
+
+		assert (len(val) == n_runs_out)
 
 		# if train_mean:
 		# 	train = np.mean(train, axis=0)
