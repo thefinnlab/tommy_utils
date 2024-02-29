@@ -2,7 +2,7 @@ import os, sys
 import json
 import pandas as pd
 import numpy as np
-from itertools import islice
+import itertools
 from operator import itemgetter
 
 from sklearn.utils.validation import check_random_state
@@ -224,7 +224,7 @@ def load_torchvision_model(model_name):
 
 def chunk(it, size):
 	it = iter(it)
-	return iter(lambda: tuple(islice(it, size)), ())
+	return iter(lambda: tuple(itertools.islice(it, size)), ())
 
 def get_layer_tensors(model_output, flatten=True):
 	
@@ -245,7 +245,7 @@ def chunk_video_clips(video_clips, batch_size):
 	'''
 	idxs = (i for i in range(video_clips.num_clips()))
 	while True:
-		sl = list(islice(idxs, batch_size))
+		sl = list(itertools.islice(idxs, batch_size))
 		if not sl:
 			break
 
