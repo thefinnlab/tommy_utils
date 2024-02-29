@@ -348,8 +348,7 @@ def create_spectral_features(audio, sr, n_fft = 1024, hop_length=512, n_mels=128
 
 from sklearn.utils.validation import check_random_state
 
-def generate_leave_one_run_out(n_samples, run_onsets, random_state=None, n_runs_out=1, 
-	train_mean=False, val_mean=False):
+def generate_leave_one_run_out(n_samples, run_onsets, random_state=None, n_runs_out=1):
 	"""Generate a leave-one-run-out split for cross-validation.
 	
 	Generates as many splits as there are runs.
@@ -405,17 +404,17 @@ def generate_leave_one_run_out(n_samples, run_onsets, random_state=None, n_runs_
 		train = [runs[jj] for jj in range(n_runs) if jj not in val_runs]
 		val = [runs[jj] for jj in range(n_runs) if jj in val_runs]
 
-		assert (len(val) == n_runs_out)
+		# assert (len(val) == n_runs_out)
 
-		if train_mean:
-			train = np.mean(train, axis=0)
-		else:
-			train = np.hstack(train)
+		# if train_mean:
+		# 	train = np.mean(train, axis=0)
+		# else:
+		# 	train = np.hstack(train)
 
-		if val_mean:
-			val = np.mean(val, axis=0)
-		else:
-			val = np.hstack(val)
+		# if val_mean:
+		# 	val = np.mean(val, axis=0)
+		# else:
+		# 	val = np.hstack(val)
 		
 		yield train, val
 
