@@ -468,7 +468,8 @@ def get_train_test_splits(x, y, train_indices, test_indices, precision='float32'
 	return X_train, Y_train, X_test, Y_test
 
 def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,2,3,4], 
-	n_iter=20, solver="random_search", alphas=np.logspace(1, 20, 20), n_jobs=None):
+	n_iter=20, n_targets_batch=200, n_alphas_batch=5, n_targets_batch_refit=200,
+	solver="random_search", alphas=np.logspace(1, 20, 20), n_jobs=None):
 	'''
 	Builds an encoding model given two lists of equal length:
 		- X: predictors -->
@@ -486,9 +487,9 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 	'''
 
 	## Static parameters for solver
-	N_TARGETS_BATCH = 200
-	N_ALPHAS_BATCH = 5
-	N_TARGETS_BATCH_REFIT = 200
+	N_TARGETS_BATCH = n_targets_batch
+	N_ALPHAS_BATCH = n_alphas_batch
+	N_TARGETS_BATCH_REFIT = n_targets_batch_refit
 
 	# for multiple kernel ridge
 	N_ITER = n_iter # --> should be higher remember to change
