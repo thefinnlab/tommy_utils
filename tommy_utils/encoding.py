@@ -534,7 +534,8 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 
 		if solver == 'random_search':
 			solver_params = dict(n_iter=N_ITER, alphas=ALPHAS, n_targets_batch=N_TARGETS_BATCH,
-				n_alphas_batch=N_ALPHAS_BATCH, n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
+				n_alphas_batch=N_ALPHAS_BATCH, n_targets_batch_refit=N_TARGETS_BATCH_REFIT,
+				Ks_in_cpu=force_kernel_cpu)
 		elif solver == 'hyper_gradient':
 			solver_params = dict(max_iter=N_ITER, n_targets_batch=N_TARGETS_BATCH, tol=1e-3,
 				initial_deltas="ridgecv", max_iter_inner_hyper=1, hyper_gradient_method="direct")
@@ -543,7 +544,7 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 										  solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu)
 
 		# Now setup the pipeline for each kernel
-		preprocess_pipeline = make_pipeline(scaler, delayer, Kernelizer(kernel="linear", force_cpu=force_kernel_cpu))
+		preprocess_pipeline = make_pipeline(scaler, delayer, Kernelizer(kernel="linear")) #, force_cpu=force_kernel_cpu))
 
 		# preprocessing for each feature space
 		kernelizers_tuples = [
