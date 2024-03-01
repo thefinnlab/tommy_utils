@@ -10,13 +10,17 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import check_cv
 from sklearn.model_selection import KFold
 from sklearn.pipeline import make_pipeline
+
+from himalaya.ridge import (
+	ColumnTransformerNoStack,
+	BandedRidgeCV
+)
+
 from himalaya.kernel_ridge import (
 	KernelRidgeCV, 
 	MultipleKernelRidgeCV, 
 	ColumnKernelizer, 
 	Kernelizer, 
-	ColumnTransformerNoStack,
-	BandedRidgeCV
 )
 
 import torch
