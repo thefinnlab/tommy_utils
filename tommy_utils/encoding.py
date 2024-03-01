@@ -10,7 +10,14 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import check_cv
 from sklearn.model_selection import KFold
 from sklearn.pipeline import make_pipeline
-from himalaya.kernel_ridge import KernelRidgeCV, MultipleKernelRidgeCV, ColumnKernelizer, Kernelizer
+from himalaya.kernel_ridge import (
+	KernelRidgeCV, 
+	MultipleKernelRidgeCV, 
+	ColumnKernelizer, 
+	Kernelizer, 
+	ColumnTransformerNoStack,
+	BandedRidgeCV
+)
 
 import torch
 import torchvision 
@@ -465,8 +472,7 @@ def get_train_test_splits(x, y, train_indices, test_indices, precision='float32'
 
 def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,2,3,4], 
 	n_iter=20, n_targets_batch=200, n_alphas_batch=5, n_targets_batch_refit=200,
-	Y_in_cpu=False, force_kernel_cpu=False, force_column_cpu=False, solver="random_search", 
-	alphas=np.logspace(1, 20, 20), n_jobs=None):
+	Y_in_cpu=False, force_cpu=False, solver="random_search", alphas=np.logspace(1, 20, 20), n_jobs=None):
 	'''
 	Builds an encoding model given two lists of equal length:
 		- X: predictors -->
@@ -496,8 +502,8 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 	# ensure that X and Y are the same length
 	assert (len(X) == len(Y))
 
-	# n_samples = np.concatenate(X).shape[0]
-	# n_features = np.concatenate(X).shape[1]
+	n_samples = np.concatenate(X).shape[0]
+	n_features = np.concatenate(X).shape[1]
 
 	## Standard parameters
 	# outer_cv --> number of folds to do over the data
@@ -526,7 +532,10 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 
 	# if feature info is provided we have multiple feature spaces and use
 	# banded ridge
-	if feature_space_infos:
+	if feature_space_infos and n_features >= n_samples:
+
+		print (f'Using multiple kernel ridge')
+
 		# We use 20 random-search iterations to have a reasonably fast example.
 
 		## TLB --> TRY ADDING IN RETURN_WEIGHTS AND SEE WHAT HAPPENS
@@ -535,7 +544,8 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 		if solver == 'random_search':
 			solver_params = dict(n_iter=N_ITER, alphas=ALPHAS, n_targets_batch=N_TARGETS_BATCH,
 				n_alphas_batch=N_ALPHAS_BATCH, n_targets_batch_refit=N_TARGETS_BATCH_REFIT,
-				Ks_in_cpu=force_kernel_cpu)
+				Ks_in_cpu=force_cpu)
+
 		elif solver == 'hyper_gradient':
 			solver_params = dict(max_iter=N_ITER, n_targets_batch=N_TARGETS_BATCH, tol=1e-3,
 				initial_deltas="ridgecv", max_iter_inner_hyper=1, hyper_gradient_method="direct")
@@ -553,16 +563,44 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 		]
 
 		# put them together
-		column_kernelizer = ColumnKernelizer(kernelizers_tuples, n_jobs=n_jobs, force_cpu=force_column_cpu)
+		column_kernelizer = ColumnKernelizer(kernelizers_tuples, n_jobs=n_jobs, force_cpu=force_cpu)
 
 		# make the pipeline
 		pipeline = make_pipeline(column_kernelizer, mkr_model)
+
+	elif feature_space_infos and n_samples > n_features:
+
+		print (f'Using banded ridge')
+
+		## TLB --> TRY ADDING IN RETURN_WEIGHTS AND SEE WHAT HAPPENS
+		solver_function = BandedRidgeCV.ALL_SOLVERS[solver]
+
+		solver_params = dict(n_iter=N_ITER, alphas=ALPHAS, n_targets_batch=N_TARGETS_BATCH,
+			n_alphas_batch=N_ALPHAS_BATCH, n_targets_batch_refit=N_TARGETS_BATCH_REFIT, Y_in_cpu=Y_in_cpu)
+
+		banded_model = BandedRidgeCV(groups="input", solver=solver, 
+			solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu, force_cpu=force_cpu)
+
+		# Now setup the pipeline for each band
+		preprocess_pipeline = make_pipeline(scaler, delayer)
+
+		# preprocessing for each feature space
+		banded_tuples = [
+			(name, preprocess_pipeline, slice_)
+			for name, slice_ in feature_space_infos
+		]
+
+		# put them together
+		column_transformer = ct = ColumnTransformerNoStack(banded_tuples, n_jobs=n_jobs)
+
+		# make the pipeline
+		pipeline = make_pipeline(column_transformer, banded_model)
 	
 	else:       
 		solver_params=dict(n_targets_batch=N_TARGETS_BATCH, n_alphas_batch=N_ALPHAS_BATCH, 
 						   n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
 		
-		ridge = KernelRidgeCV(kernel="linear", alphas=ALPHAS, cv=inner_cv, Y_in_cpu=Y_in_cpu)
+		ridge = KernelRidgeCV(kernel="linear", alphas=ALPHAS, cv=inner_cv, Y_in_cpu=Y_in_cpu, force_cpu=force_cpu)
 		
 		pipeline = make_pipeline(scaler, delayer, ridge)
 
