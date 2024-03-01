@@ -400,24 +400,18 @@ def generate_leave_one_run_out(n_samples, run_onsets, random_state=None, n_runs_
 						 "index.")
 	
 	for val_runs in all_val_runs: #.T:
+	
+		train = [runs[jj] for jj in range(n_runs) if jj not in val_runs]
+		val = [runs[jj] for jj in range(n_runs) if jj in val_runs]
 
-		train = np.hstack(
-			[runs[jj] for jj in range(n_runs) if jj not in val_runs])
-
-		val = np.hstack(
-			[runs[jj] for jj in range(n_runs) if jj in val_runs])
-
+		# ensure that we pulled the right number of validation runs
 		assert (len(val) == n_runs_out)
 
-		# if train_mean:
-		# 	train = np.mean(train, axis=0)
-		# else:
-		# 	train = np.hstack(train)
+		# stack them horizontally for use in indexing
+		train, val = [np.hstack(x) for x in [train, val]]
 
-		# if val_mean:
-		# 	val = np.mean(val, axis=0)
-		# else:
-		# 	val = np.hstack(val)
+		# ensure no overlap between sets
+		assert (not np.isin(train, val).any())
 		
 		yield train, val
 
@@ -501,6 +495,9 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 
 	# ensure that X and Y are the same length
 	assert (len(X) == len(Y))
+
+	# n_samples = np.concatenate(X).shape[0]
+	# n_features = np.concatenate(X).shape[1]
 
 	## Standard parameters
 	# outer_cv --> number of folds to do over the data
