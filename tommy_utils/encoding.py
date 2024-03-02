@@ -476,7 +476,8 @@ def get_train_test_splits(x, y, train_indices, test_indices, precision='float32'
 
 def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,2,3,4], 
 	n_iter=20, n_targets_batch=200, n_alphas_batch=5, n_targets_batch_refit=200,
-	Y_in_cpu=False, force_cpu=False, solver="random_search", alphas=np.logspace(1, 20, 20), n_jobs=None):
+	Y_in_cpu=False, force_cpu=False, solver="random_search", alphas=np.logspace(1, 20, 20), n_jobs=None,
+	force_banded_ridge=False):
 	'''
 	Builds an encoding model given two lists of equal length:
 		- X: predictors -->
@@ -571,7 +572,7 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 		# make the pipeline
 		pipeline = make_pipeline(column_kernelizer, mkr_model)
 
-	elif feature_space_infos and n_samples > n_features:
+	elif feature_space_infos and (n_samples > n_features or force_banded_ridge):
 
 		print (f'Using banded ridge')
 
