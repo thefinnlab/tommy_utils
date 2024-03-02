@@ -537,69 +537,71 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 
 	# if feature info is provided we have multiple feature spaces and use
 	# banded ridge
-	if feature_space_infos and n_features >= n_samples:
+	if feature_space_infos:
 
-		print (f'Using multiple kernel ridge')
+		if (n_samples > n_features or force_banded_ridge):
 
-		# We use 20 random-search iterations to have a reasonably fast example.
+			print (f'Using banded ridge')
 
-		## TLB --> TRY ADDING IN RETURN_WEIGHTS AND SEE WHAT HAPPENS
-		solver_function = MultipleKernelRidgeCV.ALL_SOLVERS[solver]
+			## TLB --> TRY ADDING IN RETURN_WEIGHTS AND SEE WHAT HAPPENS
+			solver_function = BandedRidgeCV.ALL_SOLVERS[solver]
 
-		if solver == 'random_search':
 			solver_params = dict(n_iter=N_ITER, alphas=ALPHAS, n_targets_batch=N_TARGETS_BATCH,
-				n_alphas_batch=N_ALPHAS_BATCH, n_targets_batch_refit=N_TARGETS_BATCH_REFIT,Ks_in_cpu=force_cpu)
+				n_alphas_batch=N_ALPHAS_BATCH, n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
 
-		elif solver == 'hyper_gradient':
-			solver_params = dict(max_iter=N_ITER, n_targets_batch=N_TARGETS_BATCH, tol=1e-3,
-				initial_deltas="ridgecv", max_iter_inner_hyper=1, hyper_gradient_method="direct")
+			banded_model = BandedRidgeCV(groups="input", solver=solver, 
+				solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu, force_cpu=force_cpu)
 
-		mkr_model = MultipleKernelRidgeCV(kernels="precomputed", solver=solver,
-										  solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu)
+			# Now setup the pipeline for each band
+			preprocess_pipeline = make_pipeline(scaler, delayer)
 
-		# Now setup the pipeline for each kernel
-		preprocess_pipeline = make_pipeline(scaler, delayer, Kernelizer(kernel="linear")) #, force_cpu=force_kernel_cpu))
+			# preprocessing for each feature space
+			banded_tuples = [
+				(name, preprocess_pipeline, slice_)
+				for name, slice_ in feature_space_infos
+			]
 
-		# preprocessing for each feature space
-		kernelizers_tuples = [
-			(name, preprocess_pipeline, slice_)
-			for name, slice_ in feature_space_infos
-		]
+			# put them together
+			column_transformer = ct = ColumnTransformerNoStack(banded_tuples, n_jobs=n_jobs)
 
-		# put them together
-		column_kernelizer = ColumnKernelizer(kernelizers_tuples, n_jobs=n_jobs, force_cpu=force_cpu)
+			# make the pipeline
+			pipeline = make_pipeline(column_transformer, banded_model)
 
-		# make the pipeline
-		pipeline = make_pipeline(column_kernelizer, mkr_model)
+		else:
 
-	elif feature_space_infos and (n_samples > n_features or force_banded_ridge):
+			print (f'Using multiple kernel ridge')
 
-		print (f'Using banded ridge')
+			# We use 20 random-search iterations to have a reasonably fast example.
 
-		## TLB --> TRY ADDING IN RETURN_WEIGHTS AND SEE WHAT HAPPENS
-		solver_function = BandedRidgeCV.ALL_SOLVERS[solver]
+			## TLB --> TRY ADDING IN RETURN_WEIGHTS AND SEE WHAT HAPPENS
+			solver_function = MultipleKernelRidgeCV.ALL_SOLVERS[solver]
 
-		solver_params = dict(n_iter=N_ITER, alphas=ALPHAS, n_targets_batch=N_TARGETS_BATCH,
-			n_alphas_batch=N_ALPHAS_BATCH, n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
+			if solver == 'random_search':
+				solver_params = dict(n_iter=N_ITER, alphas=ALPHAS, n_targets_batch=N_TARGETS_BATCH,
+					n_alphas_batch=N_ALPHAS_BATCH, n_targets_batch_refit=N_TARGETS_BATCH_REFIT,Ks_in_cpu=force_cpu)
 
-		banded_model = BandedRidgeCV(groups="input", solver=solver, 
-			solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu, force_cpu=force_cpu)
+			elif solver == 'hyper_gradient':
+				solver_params = dict(max_iter=N_ITER, n_targets_batch=N_TARGETS_BATCH, tol=1e-3,
+					initial_deltas="ridgecv", max_iter_inner_hyper=1, hyper_gradient_method="direct")
 
-		# Now setup the pipeline for each band
-		preprocess_pipeline = make_pipeline(scaler, delayer)
+			mkr_model = MultipleKernelRidgeCV(kernels="precomputed", solver=solver,
+											  solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu)
 
-		# preprocessing for each feature space
-		banded_tuples = [
-			(name, preprocess_pipeline, slice_)
-			for name, slice_ in feature_space_infos
-		]
+			# Now setup the pipeline for each kernel
+			preprocess_pipeline = make_pipeline(scaler, delayer, Kernelizer(kernel="linear")) #, force_cpu=force_kernel_cpu))
 
-		# put them together
-		column_transformer = ct = ColumnTransformerNoStack(banded_tuples, n_jobs=n_jobs)
+			# preprocessing for each feature space
+			kernelizers_tuples = [
+				(name, preprocess_pipeline, slice_)
+				for name, slice_ in feature_space_infos
+			]
 
-		# make the pipeline
-		pipeline = make_pipeline(column_transformer, banded_model)
-	
+			# put them together
+			column_kernelizer = ColumnKernelizer(kernelizers_tuples, n_jobs=n_jobs, force_cpu=force_cpu)
+
+			# make the pipeline
+			pipeline = make_pipeline(column_kernelizer, mkr_model)
+			
 	else:       
 		solver_params=dict(n_targets_batch=N_TARGETS_BATCH, n_alphas_batch=N_ALPHAS_BATCH, 
 						   n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
