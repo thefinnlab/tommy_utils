@@ -3,7 +3,6 @@ import numbers
 
 import numpy as np
 import torch
-import cupy
 
 from himalaya.backend import get_backend
 from himalaya.backend._utils import _dtype_to_str
@@ -120,11 +119,11 @@ def solve_group_level_group_ridge_random_search(
 	backend = get_backend()
 
 	if backend.name == 'numpy':
-	    backend.split = np.split
-	elif backend.name == 'cupy':
-	    backend.split = cupy.split
+		backend.split = np.split
+	# elif backend.name == 'cupy':
+	#     backend.split = cupy.split
 	elif backend.name == 'torch' or backend.name == 'torch_cuda':
-	    backend.split = torch.split
+		backend.split = torch.split
 
 	n_spaces = len(Xs)
 	if isinstance(n_iter, int):
