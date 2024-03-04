@@ -152,8 +152,8 @@ def solve_group_level_group_ridge_random_search(
 	# Y = backend.asarray(Y, dtype=dtype, device="cpu" if Y_in_cpu else device)
 	# Xs = [backend.asarray(X, dtype=dtype, device=device) for X in Xs]
 
-	Y = backend.asarray(Y, dtype=dtype, device="cpu")
-	Xs = [backend.asarray(X, dtype=dtype, device=device) for X in Xs]
+	Y = backend.asarray(Y, dtype=dtype, device="cpu") # if Y_in_cpu else device)
+	Xs = [backend.asarray(X, dtype=dtype, device="cpu") for X in Xs]
 
 	# stack all features
 	X_ = backend.concatenate(Xs, 1)
@@ -203,6 +203,7 @@ def solve_group_level_group_ridge_random_search(
 		raise ValueError("X and Y must have the same number of samples.")
 
 	X_offset, Y_offset = None, None
+
 	if fit_intercept:
 		X_offset = X_.mean(0)
 		Y_offset = Y.mean(0)
@@ -210,10 +211,13 @@ def solve_group_level_group_ridge_random_search(
 		Y = Y - Y_offset
 
 	n_samples, n_targets = Y.shape
+
 	if n_targets_batch is None:
 		n_targets_batch = n_targets
+
 	if n_targets_batch_refit is None:
 		n_targets_batch_refit = n_targets_batch
+
 	if n_alphas_batch is None:
 		n_alphas_batch = len(alphas)
 
@@ -254,7 +258,7 @@ def solve_group_level_group_ridge_random_search(
 				use_it=progress_bar)):
 
 		for kk in range(n_spaces):
-			X_[:, slices[kk]] *= backend.sqrt(gamma[kk])
+			X_[:, slices[kk]] *= backend.sqrt(gamma[kk].to(X_.device))
 
 		if jitter_alphas:
 			noise = backend.asarray_like(random_generator.rand(), alphas)
@@ -265,13 +269,16 @@ def solve_group_level_group_ridge_random_search(
 
 		for jj, (train, test) in enumerate(cv.split(X_)):
 
-			train = backend.to_gpu(train, device=device)
-			test = backend.to_gpu(test, device=device)
+			# train = backend.to_gpu(train, device=device)
+			# test = backend.to_gpu(test, device=device)
 
 			Xtrain = backend.mean_float64(
 				backend.stack(backend.split(X_[train], n_samples_group)), axis=0)
 			Xtest = backend.mean_float64(
 				backend.stack(backend.split(X_[test], n_samples_group)), axis=0)
+
+			Xtrain = backend.to_gpu(Xtrain, device=device)
+			Xtest = backend.to_gpu(Xtest, device=device)
 
 			# if fit_intercept:
 			# 	Xtrain_mean = X_[train].mean(0)
@@ -293,9 +300,9 @@ def solve_group_level_group_ridge_random_search(
 					batch = slice(start, start + n_targets_batch)
 
 					Ytrain = backend.mean_float64(
-						backend.stack(backend.split(Y[:, batch][train], n_samples_group), axis=0), axis=0)
+						backend.stack(backend.split(Y[:, batch][train.to(Y.device)], n_samples_group), axis=0), axis=0)
 					Ytest = backend.mean_float64(
-						backend.stack(backend.split(Y[:, batch][test], n_samples_group), axis=0), axis=0)
+						backend.stack(backend.split(Y[:, batch][test.to(Y.device)], n_samples_group), axis=0), axis=0)
 
 					Ytrain = backend.to_gpu(Ytrain, device=device)
 					Ytest = backend.to_gpu(Ytest, device=device)
@@ -353,7 +360,7 @@ def solve_group_level_group_ridge_random_search(
 					X_avg, shape=(n_features, len(update_indices)), device="cpu")
 
 				for matrix, alpha_batch in _decompose_ridge(
-						Xtrain=X_avg, alphas=used_alphas,
+						Xtrain=backend.to_gpu(X_avg, device=device), alphas=used_alphas,
 						negative_eigenvalues="zeros",
 						n_alphas_batch=min(len(used_alphas), n_alphas_batch),
 						method=diagonalize_method):
@@ -405,7 +412,7 @@ def solve_group_level_group_ridge_random_search(
 		del mask
 
 		for kk in range(n_spaces):
-			X_[:, slices[kk]] /= backend.sqrt(gamma[kk])
+			X_[:, slices[kk]] /= backend.sqrt(gamma[kk].to(X_.device))
 
 	deltas = backend.log(best_gammas / best_alphas[None, :])
 
