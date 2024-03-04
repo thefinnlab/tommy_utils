@@ -120,8 +120,10 @@ def solve_group_level_group_ridge_random_search(
 	if backend.name == 'numpy':
 	    backend.split = np.split
 	elif backend.name == 'cupy':
+		import cupy
 	    backend.split = cupy.split
 	elif backend.name == 'torch' or backend.name == 'torch_cuda':
+		import torch
 	    backend.split = torch.split
 
 	n_spaces = len(Xs)
