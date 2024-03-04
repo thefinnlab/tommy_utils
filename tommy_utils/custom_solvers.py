@@ -242,12 +242,7 @@ def solve_group_level_group_ridge_random_search(
 				backend.stack(backend.split(X_[train], n_samples_group)), axis=0)
 			Xtest = backend.mean_float64(
 				backend.stack(backend.split(X_[test], n_samples_group)), axis=0)
-
-			print (Xtrain.shape)
-			print (Xtest.shape)
-
-			# Xtrain, Xtest = X_[train], X_[test]
-
+			
 			if fit_intercept:
 				Xtrain_mean = X_[train].mean(0)
 				Xtrain = X_[train] - Xtrain_mean
@@ -270,9 +265,6 @@ def solve_group_level_group_ridge_random_search(
 						backend.stack(backend.split(Y[:, batch][train], n_samples_group), axis=0), axis=0)
 					Ytest = backend.mean_float64(
 						backend.stack(backend.split(Y[:, batch][test], n_samples_group), axis=0), axis=0)
-
-					print (Ytrain.shape)
-					print (Ytest.shape)
 
 					Ytrain = backend.to_gpu(Ytrain, device=device)
 					Ytest = backend.to_gpu(Ytest, device=device)
