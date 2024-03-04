@@ -152,10 +152,10 @@ def solve_group_level_group_ridge_random_search(
 
 	### TLB ADDING 
 	# ensure all samples are same shape
-	if np.mod(Y.shape[0], n_sample_groups):
+	if np.mod(Y.shape[0], n_samples_group):
 		raise ValueError("For group level models, all separate observations of Y "
 						 "must have the same number of samples and features. This "
-						 "means that Y.shape[0] should be divisible into n_sample_groups.")
+						 "means that Y.shape[0] should be divisible into n_samples_group.")
 
 	n_samples, n_features = X_.shape
 	if n_samples < n_features and warn:
