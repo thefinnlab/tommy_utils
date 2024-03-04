@@ -533,6 +533,7 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 
 			if solver == 'group_level_random_search':
 
+				print ([y.shape[0] for y in Y])
 				if not all([y.shape[0] == Y[0].shape for y in Y]):
 					raise ValueError("To use group level random search, all "
 						"groups need to have same number of samples.")
