@@ -144,7 +144,11 @@ def solve_group_level_group_ridge_random_search(
 	dtype = Xs[0].dtype
 	gammas = backend.asarray(gammas, dtype=dtype)
 	device = getattr(gammas, "device", None)
+
 	gammas, alphas = backend.check_arrays(gammas, alphas)
+
+
+	# TLB changing when we port items to GPU
 	Y = backend.asarray(Y, dtype=dtype, device="cpu" if Y_in_cpu else device)
 	Xs = [backend.asarray(X, dtype=dtype, device=device) for X in Xs]
 
@@ -167,6 +171,7 @@ def solve_group_level_group_ridge_random_search(
 						 "means that Y.shape[0] should be divisible into n_samples_group.")
 
 	n_samples, n_features = X_.shape
+
 	if n_samples < n_features and warn:
 		warnings.warn(
 			"Solving banded ridge is slower than solving multiple-kernel ridge"
@@ -176,6 +181,7 @@ def solve_group_level_group_ridge_random_search(
 			"himalaya.kernel_ridge.solve_multiple_kernel_ridge_random_search "
 			"would be faster. Use warn=False to silence this warning.",
 			UserWarning)
+	
 	if X_.shape[0] != Y.shape[0]:
 		raise ValueError("X and Y must have the same number of samples.")
 
@@ -196,21 +202,26 @@ def solve_group_level_group_ridge_random_search(
 
 	cv = check_cv(cv, Y)
 	n_splits = cv.get_n_splits()
+
 	for train, val in cv.split(Y):
 		if len(val) == 0 or len(train) == 0:
 			raise ValueError("Empty train or validation set. "
 							 "Check that `cv` is correctly defined.")
 
 	random_generator, given_alphas = None, None
+
 	if jitter_alphas:
 		random_generator = check_random_state(random_state)
 		given_alphas = backend.copy(alphas)
 
 	best_gammas = backend.full_like(gammas, fill_value=1.0 / n_spaces,
 									shape=(n_spaces, n_targets))
+
 	best_alphas = backend.ones_like(gammas, shape=n_targets)
+
 	cv_scores = backend.zeros_like(gammas, shape=(len(gammas), n_targets),
 								   device="cpu")
+
 	current_best_scores = backend.full_like(gammas, fill_value=-backend.inf,
 											shape=n_targets)
 
@@ -234,7 +245,9 @@ def solve_group_level_group_ridge_random_search(
 
 		scores = backend.zeros_like(gammas,
 									shape=(n_splits, len(alphas), n_targets))
+
 		for jj, (train, test) in enumerate(cv.split(X_)):
+
 			train = backend.to_gpu(train, device=device)
 			test = backend.to_gpu(test, device=device)
 
@@ -242,7 +255,7 @@ def solve_group_level_group_ridge_random_search(
 				backend.stack(backend.split(X_[train], n_samples_group)), axis=0)
 			Xtest = backend.mean_float64(
 				backend.stack(backend.split(X_[test], n_samples_group)), axis=0)
-			
+
 			if fit_intercept:
 				Xtrain_mean = X_[train].mean(0)
 				Xtrain = X_[train] - Xtrain_mean
