@@ -19,7 +19,7 @@ from himalaya.kernel_ridge._random_search import _select_best_alphas
 from himalaya.ridge._random_search import _decompose_ridge
 
 def solve_group_level_group_ridge_random_search(
-	Xs, Y, n_sample_groups, n_iter=100, concentration=[0.1,
+	Xs, Y, n_samples_group, n_iter=100, concentration=[0.1,
 									  1.0], alphas=1.0, fit_intercept=False,
 	score_func=l2_neg_loss, cv=5, return_weights=False, local_alpha=True,
 	jitter_alphas=False, random_state=None, n_targets_batch=None,
