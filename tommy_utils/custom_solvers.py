@@ -269,8 +269,9 @@ def solve_group_level_group_ridge_random_search(
 
 					print (Ytrain.shape)
 					print (Ytest.shape)
-					# Ytrain = backend.to_gpu(Y[:, batch][train], device=device)
-					# Ytest = backend.to_gpu(Y[:, batch][test], device=device)
+					
+					Ytrain = backend.to_gpu(Y[:, batch][train], device=device)
+					Ytest = backend.to_gpu(Y[:, batch][test], device=device)
 
 
 					if fit_intercept:
