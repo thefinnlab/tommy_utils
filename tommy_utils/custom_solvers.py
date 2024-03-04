@@ -238,8 +238,10 @@ def solve_group_level_group_ridge_random_search(
 			train = backend.to_gpu(train, device=device)
 			test = backend.to_gpu(test, device=device)
 
-			Xtrain = backend.mean_float64(backend.split(X_[train], n_samples_group), axis=0)
-			Xtest = backend.mean_float64(backend.split(X_[test], n_samples_group), axis=0)
+			Xtrain = backend.mean_float64(
+				backend.stack(backend.split(X_[train], n_samples_group)), axis=0)
+			Xtest = backend.mean_float64(
+				backend.stack(backend.split(X_[test], n_samples_group)), axis=0)
 
 			print (Xtrain.shape)
 			print (Xtest.shape)
@@ -264,15 +266,16 @@ def solve_group_level_group_ridge_random_search(
 				for start in range(0, n_targets, n_targets_batch):
 					batch = slice(start, start + n_targets_batch)
 
-					Ytrain = backend.mean_float64(backend.split(Y[:, batch][train], n_samples_group), axis=0)
-					Ytest = backend.mean_float64(backend.split(Y[:, batch][test], n_samples_group), axis=0)
+					Ytrain = backend.mean_float64(
+						backend.stack(backend.split(Y[:, batch][train], n_samples_group)), axis=0)
+					Ytest = backend.mean_float64(
+						backend.stack(backend.split(Y[:, batch][test], n_samples_group)), axis=0)
 
 					print (Ytrain.shape)
 					print (Ytest.shape)
-					
+
 					Ytrain = backend.to_gpu(Y[:, batch][train], device=device)
 					Ytest = backend.to_gpu(Y[:, batch][test], device=device)
-
 
 					if fit_intercept:
 						Ytrain_mean = Ytrain.mean(0)
