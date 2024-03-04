@@ -116,6 +116,14 @@ def solve_group_level_group_ridge_random_search(
 		Intercept. Only returned when fit_intercept is True.
 	"""
 	backend = get_backend()
+
+	if backend.name == 'numpy':
+	    backend.split = np.split
+	elif backend.name == 'cupy':
+	    backend.split = cupy.split
+	elif backend.name == 'torch' or backend.name == 'torch_cuda':
+	    backend.split = torch.split
+
 	n_spaces = len(Xs)
 	if isinstance(n_iter, int):
 		gammas = generate_dirichlet_samples(n_samples=n_iter,
@@ -229,8 +237,8 @@ def solve_group_level_group_ridge_random_search(
 			train = backend.to_gpu(train, device=device)
 			test = backend.to_gpu(test, device=device)
 
-			Xtrain = torch.mean(torch.split(X_[train], n_sample_groups), axis=0)
-			Xtest = torch.mean(torch.split(X_[test], n_sample_groups), axis=0)
+			Xtrain = backend.mean_float64(backend.split(X_[train], n_sample_groups), axis=0)
+			Xtest = backend.mean_float64(backend.split(X_[test], n_sample_groups), axis=0)
 
 			print (Xtrain.shape)
 			print (Xtest.shape)
@@ -255,8 +263,8 @@ def solve_group_level_group_ridge_random_search(
 				for start in range(0, n_targets, n_targets_batch):
 					batch = slice(start, start + n_targets_batch)
 
-					Ytrain = torch.mean(torch.split(Y[:, batch][train], n_sample_groups), axis=0)
-					Ytest = torch.mean(torch.split(Y[:, batch][test], n_sample_groups), axis=0)
+					Ytrain = backend.mean_float64(backend.split(Y[:, batch][train], n_sample_groups), axis=0)
+					Ytest = backend.mean_float64(backend.split(Y[:, batch][test], n_sample_groups), axis=0)
 
 					print (Ytrain.shape)
 					print (Ytest.shape)
