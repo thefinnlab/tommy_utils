@@ -32,7 +32,11 @@ import torch.nn.functional as F
 import torchlens as tl
 
 from .delayer import Delayer
+from .custom_solvers import solve_group_level_group_ridge_random_search
 from . import nlp
+
+# modify banded ridge to contain our custom solver
+BandedRidgeCV.ALL_SOLVERS['group_level_random_search'] = solve_group_level_group_ridge_random_search
 
 ENCODING_FEATURES = {
 	'visual': [
@@ -476,8 +480,8 @@ def get_train_test_splits(x, y, train_indices, test_indices, precision='float32'
 
 def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,2,3,4], 
 	n_iter=20, n_targets_batch=200, n_alphas_batch=5, n_targets_batch_refit=200,
-	Y_in_cpu=False, force_cpu=False, solver="random_search", alphas=np.logspace(1, 20, 20), n_jobs=None,
-	force_banded_ridge=False):
+	Y_in_cpu=False, force_cpu=False, solver="random_search", alphas=np.logspace(1, 20, 20), 
+	n_jobs=None, force_banded_ridge=False):
 	'''
 	Builds an encoding model given two lists of equal length:
 		- X: predictors -->
@@ -511,29 +515,10 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 	n_features = np.concatenate(X).shape[1]
 
 	## Standard parameters
-	# outer_cv --> number of folds to do over the data
 	# scaler --> zscores the predictors
 	# delayer --> estimates the HRF
-	# outer_cv = KFold(n_splits=len(X))
 	scaler = StandardScaler(with_mean=True, with_std=False)
 	delayer = Delayer(delays=delays) # delays are in indices --> needs to be scales to TRs
-	
-	# # Learn the regularization on the inner fold
-	# n_samples = np.concatenate(X).shape[0]
-	# run_lengths = [len(x) for x in X]
-	# run_onsets = np.cumsum(np.concatenate([[0], run_lengths]))[:-1]
-
-	# print (f'Number of samples: {n_samples}')
-	# print (f'Run lengths: {run_lengths}')
-
-	# if inner_folds == 'loo':
-	# 	# now make the cross validation with leave one run out
-	# 	inner_cv = generate_leave_one_run_out(n_samples, run_onsets)
-	# 	inner_cv = check_cv(inner_cv)  # copy the cross-validation splitter into a reusable list
-	# elif inner_folds == 'loo_mean':
-
-	# else:
-	# 	inner_cv = KFold(n_splits=inner_folds)
 
 	# if feature info is provided we have multiple feature spaces and use
 	# banded ridge
@@ -546,8 +531,21 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 			## TLB --> TRY ADDING IN RETURN_WEIGHTS AND SEE WHAT HAPPENS
 			solver_function = BandedRidgeCV.ALL_SOLVERS[solver]
 
-			solver_params = dict(n_iter=N_ITER, alphas=ALPHAS, n_targets_batch=N_TARGETS_BATCH,
-				n_alphas_batch=N_ALPHAS_BATCH, n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
+			if solver == 'group_level_random_search':
+
+				if not all([y.shape[0] == Y[0].shape for y in Y]):
+					raise ValueError("To use group level random search, all "
+						"groups need to have same number of samples.")
+
+				n_samples_group = Y[0].shape[0]
+
+				solver_params = dict(n_samples_group=n_samples_group, n_iter=N_ITER, alphas=ALPHAS, 
+					n_targets_batch=N_TARGETS_BATCH, n_alphas_batch=N_ALPHAS_BATCH, 
+					n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
+
+			elif solver == 'random_search':
+				solver_params = dict(n_iter=N_ITER, alphas=ALPHAS, n_targets_batch=N_TARGETS_BATCH,
+					n_alphas_batch=N_ALPHAS_BATCH, n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
 
 			banded_model = BandedRidgeCV(groups="input", solver=solver, 
 				solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu, force_cpu=force_cpu)
@@ -601,7 +599,7 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 
 			# make the pipeline
 			pipeline = make_pipeline(column_kernelizer, mkr_model)
-			
+
 	else:       
 		solver_params=dict(n_targets_batch=N_TARGETS_BATCH, n_alphas_batch=N_ALPHAS_BATCH, 
 						   n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
