@@ -300,9 +300,9 @@ def solve_group_level_group_ridge_random_search(
 					batch = slice(start, start + n_targets_batch)
 
 					Ytrain = backend.mean_float64(
-						backend.stack(backend.split(Y[:, batch][train.to(Y.device)], n_samples_group), axis=0), axis=0)
+						backend.stack(backend.split(Y[:, batch][train], n_samples_group), axis=0), axis=0)
 					Ytest = backend.mean_float64(
-						backend.stack(backend.split(Y[:, batch][test.to(Y.device)], n_samples_group), axis=0), axis=0)
+						backend.stack(backend.split(Y[:, batch][test], n_samples_group), axis=0), axis=0)
 
 					Ytrain = backend.to_gpu(Ytrain, device=device)
 					Ytest = backend.to_gpu(Ytest, device=device)
