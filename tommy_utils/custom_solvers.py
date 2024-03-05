@@ -261,13 +261,9 @@ def solve_group_level_group_ridge_random_search(
 	for ii, gamma in enumerate(
 			bar(gammas, '%d random sampling with cv' % len(gammas),
 				use_it=progress_bar)):
-
-		start_time = time.time()
-
+	
 		for kk in range(n_spaces):
-			X_[:, slices[kk]] *= backend.sqrt(gamma[kk].to(X_.device))
-
-		print (f'Multiplying by gammas: {time.time() - start_time}')
+			X_[:, slices[kk]] *= backend.sqrt(backend.asarray(gamma[kk], device=X_.device))
 
 		if jitter_alphas:
 			noise = backend.asarray_like(random_generator.rand(), alphas)
@@ -281,21 +277,13 @@ def solve_group_level_group_ridge_random_search(
 			# train = backend.to_gpu(train, device=device)
 			# test = backend.to_gpu(test, device=device)
 
-			start_time = time.time()
-
 			Xtrain = backend.mean_float64(
 				backend.stack(backend.split(X_[train], n_samples_group)), axis=0)
 			Xtest = backend.mean_float64(
 				backend.stack(backend.split(X_[test], n_samples_group)), axis=0)
 
-			print (f'Array mean: {time.time() - start_time}')
-
-			start_time = time.time()
-
 			Xtrain = backend.to_gpu(Xtrain, device=device)
 			Xtest = backend.to_gpu(Xtest, device=device)
-
-			print (f'GPU move: {time.time() - start_time}')
 
 			# if fit_intercept:
 			# 	Xtrain_mean = X_[train].mean(0)
@@ -430,7 +418,7 @@ def solve_group_level_group_ridge_random_search(
 		del mask
 
 		for kk in range(n_spaces):
-			X_[:, slices[kk]] /= backend.sqrt(gamma[kk])
+			X_[:, slices[kk]] /= backend.sqrt(backend.asarray(gamma[kk], device=X_.device))
 
 	deltas = backend.log(best_gammas / best_alphas[None, :])
 
