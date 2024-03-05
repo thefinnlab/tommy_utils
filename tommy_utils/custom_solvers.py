@@ -19,6 +19,8 @@ from himalaya.kernel_ridge._random_search import _select_best_alphas
 
 from himalaya.ridge._random_search import _decompose_ridge
 
+import time
+
 def solve_group_level_group_ridge_random_search(
 	Xs, Y, n_samples_group, n_iter=100, concentration=[0.1,
 									  1.0], alphas=1.0, fit_intercept=False,
@@ -180,10 +182,13 @@ def solve_group_level_group_ridge_random_search(
 	# average the features here
 	X_avg = backend.mean_float64(
 				backend.stack(backend.split(X_, n_samples_group)), axis=0) 
-
-	# average the features here
 	Y_avg = backend.mean_float64(
 				backend.stack(backend.split(Y, n_samples_group)), axis=0) 
+
+	X_avg = backend.to_gpu(X_avg)
+
+	if not Y_in_cpu:
+		Y_avg = backend.to_gpu(Y_avg)
 
 	# # average the features here
 	# X_avg = backend.mean_float64(
@@ -257,8 +262,12 @@ def solve_group_level_group_ridge_random_search(
 			bar(gammas, '%d random sampling with cv' % len(gammas),
 				use_it=progress_bar)):
 
+		start_time = time.time()
+
 		for kk in range(n_spaces):
 			X_[:, slices[kk]] *= backend.sqrt(gamma[kk].to(X_.device))
+
+		print (f'Multiplying by gammas: {time.time() - start_time}')
 
 		if jitter_alphas:
 			noise = backend.asarray_like(random_generator.rand(), alphas)
@@ -272,13 +281,21 @@ def solve_group_level_group_ridge_random_search(
 			# train = backend.to_gpu(train, device=device)
 			# test = backend.to_gpu(test, device=device)
 
+			start_time = time.time()
+
 			Xtrain = backend.mean_float64(
 				backend.stack(backend.split(X_[train], n_samples_group)), axis=0)
 			Xtest = backend.mean_float64(
 				backend.stack(backend.split(X_[test], n_samples_group)), axis=0)
 
+			print (f'Array mean: {time.time() - start_time}')
+
+			start_time = time.time()
+
 			Xtrain = backend.to_gpu(Xtrain, device=device)
 			Xtest = backend.to_gpu(Xtest, device=device)
+
+			print (f'GPU move: {time.time() - start_time}')
 
 			# if fit_intercept:
 			# 	Xtrain_mean = X_[train].mean(0)
@@ -333,6 +350,7 @@ def solve_group_level_group_ridge_random_search(
 		# select best alphas
 		alphas_argmax, cv_scores_ii = _select_best_alphas(
 			scores, alphas, local_alpha, conservative)
+
 		cv_scores[ii, :] = backend.to_cpu(cv_scores_ii)
 
 		# update best_gammas and best_alphas
@@ -412,7 +430,7 @@ def solve_group_level_group_ridge_random_search(
 		del mask
 
 		for kk in range(n_spaces):
-			X_[:, slices[kk]] /= backend.sqrt(gamma[kk].to(X_.device))
+			X_[:, slices[kk]] /= backend.sqrt(gamma[kk])
 
 	deltas = backend.log(best_gammas / best_alphas[None, :])
 
