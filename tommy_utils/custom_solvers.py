@@ -16,8 +16,8 @@ from himalaya.scoring import l2_neg_loss
 from himalaya.validation import (
 	check_array,
 	check_random_state,
-	check_cv
-	_get_string_dtype,
+	check_cv,
+	_get_string_dtype
 )
 
 from himalaya.kernel_ridge import generate_dirichlet_samples
