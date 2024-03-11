@@ -466,14 +466,19 @@ def get_concatenated_data(data, indices):
 		data_split = np.stack(itemgetter(*indices)(data), axis=0)
 	return data_split
 
-def get_train_test_splits(x, y, train_indices, test_indices, precision='float32'):
+def get_train_test_splits(x, y, train_indices, test_indices, precision='float32', group_level=False):
 	
 	# Get train data
-	X_train = get_concatenated_data(x, train_indices).astype(precision)
-	Y_train = get_concatenated_data(y, train_indices).astype(precision)
-	
+	if group_level:
+		assert (len(x) == 1)
+		X_train = get_concatenated_data(x, [0]).astype(precision)
+		X_test = get_concatenated_data(x, [0]).astype(precision)
+	else:
+		X_train = get_concatenated_data(x, train_indices).astype(precision)
+		X_test = get_concatenated_data(x, test_indices).astype(precision)
+
 	# Get test data
-	X_test = get_concatenated_data(x, test_indices).astype(precision)
+	Y_train = get_concatenated_data(y, train_indices).astype(precision)
 	Y_test = get_concatenated_data(y, test_indices).astype(precision)
 	
 	return X_train, Y_train, X_test, Y_test
@@ -509,7 +514,10 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 	RANDOM_STATE = 42
 
 	# ensure that X and Y are the same length
-	assert (len(X) == len(Y))
+	if solver == 'group_level_random_search':
+		assert all([X[0].shape[0] == y.shape[0] for y in Y])
+	else:
+		assert (len(X) == len(Y))
 
 	n_samples = np.concatenate(X).shape[0]
 	n_features = np.concatenate(X).shape[1]

@@ -179,13 +179,14 @@ def solve_group_level_group_ridge_random_search(
 
 	n_samples, n_features = X_.shape
 
-	# average the features here
-	X_avg = backend.mean_float64(
+	# average the features here --> X is static across folds bc of group model
+	X_all = backend.mean_float64(
 				backend.stack(backend.split(X_, n_samples_group)), axis=0) 
+
 	Y_avg = backend.mean_float64(
 				backend.stack(backend.split(Y, n_samples_group)), axis=0) 
 
-	X_avg = backend.to_gpu(X_avg)
+	X_all = backend.to_gpu(X_all)
 
 	if not Y_in_cpu:
 		Y_avg = backend.to_gpu(Y_avg)
@@ -272,18 +273,23 @@ def solve_group_level_group_ridge_random_search(
 		scores = backend.zeros_like(gammas,
 									shape=(n_splits, len(alphas), n_targets))
 
-		for jj, (train, test) in enumerate(cv.split(X_)):
+		for jj, (train, test) in enumerate(cv.split()):
 
 			# train = backend.to_gpu(train, device=device)
 			# test = backend.to_gpu(test, device=device)
 
-			Xtrain = backend.mean_float64(
-				backend.stack(backend.split(X_[train], n_samples_group)), axis=0)
-			Xtest = backend.mean_float64(
-				backend.stack(backend.split(X_[test], n_samples_group)), axis=0)
+			# X_both = backend.mean_float64(
+			# 	backend.stack(backend.split(X_, n_samples_group)), axis=0)
 
-			Xtrain = backend.to_gpu(Xtrain, device=device)
-			Xtest = backend.to_gpu(Xtest, device=device)
+			# X_both = backend.to_gpu(X_both, device=device)
+
+			# Xtrain = backend.mean_float64(
+			# 	backend.stack(backend.split(X_[train], n_samples_group)), axis=0)
+			# Xtest = backend.mean_float64(
+			# 	backend.stack(backend.split(X_[test], n_samples_group)), axis=0)
+
+			# Xtrain = backend.to_gpu(Xtrain, device=device)
+			# Xtest = backend.to_gpu(Xtest, device=device)
 
 			# if fit_intercept:
 			# 	Xtrain_mean = X_[train].mean(0)
@@ -291,11 +297,11 @@ def solve_group_level_group_ridge_random_search(
 			# 	Xtest = X_[test] - Xtrain_mean
 
 			for matrix, alpha_batch in _decompose_ridge(
-					Xtrain=Xtrain, alphas=alphas, negative_eigenvalues="nan",
+					Xtrain=X_all, alphas=alphas, negative_eigenvalues="nan",
 					n_alphas_batch=n_alphas_batch, method=diagonalize_method):
 				# n_alphas_batch, n_features, n_samples_train = \
 				# matrix.shape
-				matrix = backend.matmul(Xtest, matrix)
+				matrix = backend.matmul(X_all, matrix)
 				# n_alphas_batch, n_samples_test, n_samples_train = \
 				# matrix.shape
 
@@ -363,10 +369,10 @@ def solve_group_level_group_ridge_random_search(
 				used_alphas = backend.unique(best_alphas[mask])
 
 				primal_weights = backend.zeros_like(
-					X_avg, shape=(n_features, len(update_indices)), device="cpu")
+					X_all, shape=(n_features, len(update_indices)), device="cpu")
 
 				for matrix, alpha_batch in _decompose_ridge(
-						Xtrain=backend.to_gpu(X_avg, device=device), alphas=used_alphas,
+						Xtrain=backend.to_gpu(X_all, device=device), alphas=used_alphas,
 						negative_eigenvalues="zeros",
 						n_alphas_batch=min(len(used_alphas), n_alphas_batch),
 						method=diagonalize_method):
