@@ -25,7 +25,7 @@ from himalaya.ridge import (
 	BandedRidgeCV
 )
 
-def GroupLevelBandedRidge(BandedRidgeCV):
+class GroupLevelBandedRidge(BandedRidgeCV):
 
     @force_cpu_backend
     def fit(self, X, y=None):
