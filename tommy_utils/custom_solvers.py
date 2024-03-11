@@ -128,6 +128,7 @@ def solve_group_level_group_ridge_random_search(
 		backend.split = torch.split
 
 	n_spaces = len(Xs)
+
 	if isinstance(n_iter, int):
 		gammas = generate_dirichlet_samples(n_samples=n_iter,
 											n_kernels=n_spaces,
@@ -188,6 +189,8 @@ def solve_group_level_group_ridge_random_search(
 
 	X_all = backend.to_gpu(X_all)
 
+	del X_
+
 	if not Y_in_cpu:
 		Y_avg = backend.to_gpu(Y_avg)
 
@@ -205,16 +208,16 @@ def solve_group_level_group_ridge_random_search(
 			"would be faster. Use warn=False to silence this warning.",
 			UserWarning)
 
-	if X_.shape[0] != Y.shape[0]:
-		raise ValueError("X and Y must have the same number of samples.")
+	# if X_.shape[0] != Y.shape[0]:
+	# 	raise ValueError("X and Y must have the same number of samples.")
 
-	X_offset, Y_offset = None, None
+	# X_offset, Y_offset = None, None
 
-	if fit_intercept:
-		X_offset = X_.mean(0)
-		Y_offset = Y.mean(0)
-		X_ = X_ - X_offset
-		Y = Y - Y_offset
+	# if fit_intercept:
+	# 	X_offset = X_.mean(0)
+	# 	Y_offset = Y.mean(0)
+	# 	X_ = X_ - X_offset
+	# 	Y = Y - Y_offset
 
 	n_samples, n_targets = Y.shape
 
@@ -264,7 +267,7 @@ def solve_group_level_group_ridge_random_search(
 				use_it=progress_bar)):
 	
 		for kk in range(n_spaces):
-			X_[:, slices[kk]] *= backend.sqrt(backend.asarray(gamma[kk], device=X_.device))
+			X_all[:, slices[kk]] *= backend.sqrt(backend.asarray(gamma[kk], device=X_all.device))
 
 		if jitter_alphas:
 			noise = backend.asarray_like(random_generator.rand(), alphas)
@@ -424,7 +427,7 @@ def solve_group_level_group_ridge_random_search(
 		del mask
 
 		for kk in range(n_spaces):
-			X_[:, slices[kk]] /= backend.sqrt(backend.asarray(gamma[kk], device=X_.device))
+			X_all[:, slices[kk]] /= backend.sqrt(backend.asarray(gamma[kk], device=X_all.device))
 
 	deltas = backend.log(best_gammas / best_alphas[None, :])
 
