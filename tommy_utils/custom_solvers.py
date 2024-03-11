@@ -4,14 +4,20 @@ import numbers
 import numpy as np
 import torch
 
-from himalaya.backend import get_backend
+from himalaya.backend import (
+	get_backend,
+	force_cpu_backend
+)
+
 from himalaya.backend._utils import _dtype_to_str
 from himalaya.progress_bar import bar
 
 from himalaya.scoring import l2_neg_loss
 from himalaya.validation import (
+	check_array,
 	check_random_state,
 	check_cv
+	_get_string_dtype,
 )
 
 from himalaya.kernel_ridge import generate_dirichlet_samples
