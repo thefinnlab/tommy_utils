@@ -418,7 +418,7 @@ def solve_group_level_group_ridge_random_search(
 				scores[jj, alpha_batch, :][too_small_alphas] = -1e5
 
 				del matrix, predictions
-			del train, test, Xtrain, Xtest
+			del train, test #, Xtrain, Xtest
 
 		# select best alphas
 		alphas_argmax, cv_scores_ii = _select_best_alphas(
