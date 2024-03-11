@@ -21,6 +21,76 @@ from himalaya.ridge._random_search import _decompose_ridge
 
 import time
 
+from himalaya.ridge import (
+	BandedRidgeCV
+)
+
+def GroupLevelBandedRidge(BandedRidgeCV):
+
+    @force_cpu_backend
+    def fit(self, X, y=None):
+        """Fit the model.
+
+        Parameters
+        ----------
+        X : array of shape (n_samples, n_features), or list of length \
+                (n_groups) with arrays of shape (n_samples, n_features)
+            Training data.
+            Must be a 2D array if ``groups`` is given.
+            Must be a list of 2D arrays if ``groups="input"``.
+
+        y : array of shape (n_samples,) or (n_samples, n_targets)
+            Target values.
+
+        Returns
+        -------
+        self : returns an instance of self.
+        """
+        backend = get_backend()
+
+        Xs = self._split_groups(X, check=True)
+        del X
+
+        self.n_features_in_ = sum(Xi.shape[1] for Xi in Xs)
+
+        self.dtype_ = _get_string_dtype(Xs[0])
+        device = "cpu" if self.Y_in_cpu else None
+        y = check_array(y, dtype=self.dtype_, ndim=[1, 2], device=device)
+
+        if any([np.mod(y.shape[0], Xi.shape[0]) for Xi in Xs]):
+            raise ValueError("Inconsistent number of samples.")
+
+        ravel = False
+        if y.ndim == 1:
+            y = y[:, None]
+            ravel = True
+
+        cv = check_cv(self.cv, y)
+
+        # ------------------ call the solver
+        tmp = self._call_solver(Xs=Xs, Y=y, cv=cv, return_weights=True,
+                                random_state=self.random_state,
+                                fit_intercept=self.fit_intercept,
+                                Y_in_cpu=self.Y_in_cpu)
+        if self.fit_intercept:
+            self.deltas_, self.coef_, self.cv_scores_ = tmp[:3]
+            self.intercept_, = tmp[3:]
+        else:
+            self.deltas_, self.coef_, self.cv_scores_ = tmp
+
+        if self.solver == "random_search":
+            self.best_alphas_ = 1. / backend.exp(self.deltas_).sum(0)
+        else:
+            self.best_alphas_ = None
+
+        if ravel:
+            self.coef_ = self.coef_[:, 0]
+            self.deltas_ = self.deltas_[:, 0]
+            if self.fit_intercept:
+                self.intercept_ = self.intercept_[0]
+
+        return self
+
 def solve_group_level_group_ridge_random_search(
 	Xs, Y, n_samples_group, n_iter=100, concentration=[0.1,
 									  1.0], alphas=1.0, fit_intercept=False,

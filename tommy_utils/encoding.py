@@ -32,7 +32,7 @@ import torch.nn.functional as F
 import torchlens as tl
 
 from .delayer import Delayer
-from .custom_solvers import solve_group_level_group_ridge_random_search
+from .custom_solvers import solve_group_level_group_ridge_random_search, GroupLevelBandedRidge
 from . import nlp
 
 # modify banded ridge to contain our custom solver
@@ -550,12 +550,15 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 					n_targets_batch=N_TARGETS_BATCH, n_alphas_batch=N_ALPHAS_BATCH, 
 					n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
 
+				banded_model = GroupLevelBandedRidge(groups="input", solver=solver, 
+					solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu, force_cpu=force_cpu)
+
 			elif solver == 'random_search':
 				solver_params = dict(n_iter=N_ITER, alphas=ALPHAS, n_targets_batch=N_TARGETS_BATCH,
 					n_alphas_batch=N_ALPHAS_BATCH, n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
 
-			banded_model = BandedRidgeCV(groups="input", solver=solver, 
-				solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu, force_cpu=force_cpu)
+				banded_model = BandedRidgeCV(groups="input", solver=solver, 
+					solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu, force_cpu=force_cpu)
 
 			# Now setup the pipeline for each band
 			preprocess_pipeline = make_pipeline(scaler, delayer)
