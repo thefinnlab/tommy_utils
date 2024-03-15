@@ -487,37 +487,37 @@ def get_train_test_splits(x, y, train_indices, test_indices, precision='float32'
 
 def create_banded_model(model, delays, feature_space_infos, kernel=None, n_jobs=None, force_cpu=False):
 
-    '''
-        delays: list of ints. Number of delays to use when 
-            making a delayer
-        feature_space_infos: list of tuples. Names of each 
-            feature space and 
-    '''
+	'''
+		delays: list of ints. Number of delays to use when 
+			making a delayer
+		feature_space_infos: list of tuples. Names of each 
+			feature space and 
+	'''
 
-    scaler = StandardScaler(with_mean=True, with_std=False) # demean, but keep std as contains information
-    delayer = Delayer(delays=delays) # delays are in indices --> needs to be scales to TRs
+	scaler = StandardScaler(with_mean=True, with_std=False) # demean, but keep std as contains information
+	delayer = Delayer(delays=delays) # delays are in indices --> needs to be scales to TRs
 
-    if kernel:   
-        preprocess_pipeline = make_pipeline(scaler, delayer, Kernelizer(kernel=kernel))
-    else:
-        preprocess_pipeline = make_pipeline(scaler, delayer)
-    
-    # preprocessing for each feature space
-    feature_tuples = [
-        (name, preprocess_pipeline, slice_)
-        for name, slice_ in feature_space_infos
-    ]
+	if kernel:   
+		preprocess_pipeline = make_pipeline(scaler, delayer, Kernelizer(kernel=kernel))
+	else:
+		preprocess_pipeline = make_pipeline(scaler, delayer)
+	
+	# preprocessing for each feature space
+	feature_tuples = [
+		(name, preprocess_pipeline, slice_)
+		for name, slice_ in feature_space_infos
+	]
 
-    if kernel:
-        # put them together
-        column_transformer = ColumnKernelizer(feature_tuples, n_jobs=n_jobs, force_cpu=force_cpu)
-    else:
-        # put them together
-        column_transformer = ColumnTransformerNoStack(feature_tuples, n_jobs=n_jobs)
+	if kernel:
+		# put them together
+		column_transformer = ColumnKernelizer(feature_tuples, n_jobs=n_jobs, force_cpu=force_cpu)
+	else:
+		# put them together
+		column_transformer = ColumnTransformerNoStack(feature_tuples, n_jobs=n_jobs)
 
-    pipeline = make_pipeline(column_transformer, model)
+	pipeline = make_pipeline(column_transformer, model)
 
-    return pipeline
+	return pipeline
 
 def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,2,3,4], 
 	n_iter=20, n_targets_batch=200, n_alphas_batch=5, n_targets_batch_refit=200,
@@ -641,79 +641,83 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 
 def get_all_banded_metrics(pipeline, X_test, Y_test):
 
-    backend = backend.get_backend()
+	backend = backend.get_backend()
 
-    metrics = {
-        'correlation': getattr(himalaya.scoring, 'correlation_score'),
-        'correlation-split': getattr(himalaya.scoring, 'correlation_score_split'),
-        'r2': getattr(himalaya.scoring, 'r2_score'),
-        'r2-split': getattr(himalaya.scoring, 'r2_score_split')
-    }
+	metrics = {
+		'correlation': getattr(himalaya.scoring, 'correlation_score'),
+		'correlation-split': getattr(himalaya.scoring, 'correlation_score_split'),
+		'r2': getattr(himalaya.scoring, 'r2_score'),
+		'r2-split': getattr(himalaya.scoring, 'r2_score_split')
+	}
 
-    Y_pred = pipeline.predict(X_test)
-    Y_pred_split = pipeline.predict(X_test, split=True)
+	Y_pred = pipeline.predict(X_test)
+	Y_pred_split = pipeline.predict(X_test, split=True)
 
-    results = {
-        'prediction': Y_pred,
-        'prediction-split': Y_pred_split,
-    }
+	results = {
+		'prediction': Y_pred,
+		'prediction-split': Y_pred_split,
+	}
 
-    for metric, fx in metrics.items():
-        if 'split' in metric:
-            score = fx(Y_test, Y_pred)
-        else:
-            score = fx(Y_test, Y_pred)
-        
-        results[metric] = score
+	for metric, fx in metrics.items():
+		if 'split' in metric:
+			score = fx(Y_test, Y_pred)
+		else:
+			score = fx(Y_test, Y_pred)
+		
+		results[metric] = score
 
-    results = {k: np.asarray(backend.to_cpu(v)) for k, v in results.items()}
-    
-    return results
+	results = {k: np.asarray(backend.to_cpu(v)) for k, v in results.items()}
+
+	# now that things are arrays calculate residuals
+	results['residuals'] = (Y_test - results['prediction'])
+	results['residuals-split'] = (Y_test - results['prediction-split'])
+	
+	return results
 
 def save_model_parameters(pipeline):
-    '''
-    Given a pipeline used to build 
-    '''
+	'''
+	Given a pipeline used to build 
+	'''
 
-    BANDED_RIDGE_MODELS = [
-	    'GroupLevelBandedRidgeCV', 
-	    'GroupRidgeCV', 
-	    'BandedRidgeCV', 
-	    'KernelRidgeCV', 
-	    'MultipleKernelRidgeCV'
-    ]
+	BANDED_RIDGE_MODELS = [
+		'GroupLevelBandedRidgeCV', 
+		'GroupRidgeCV', 
+		'BandedRidgeCV', 
+		'KernelRidgeCV', 
+		'MultipleKernelRidgeCV'
+	]
 
-    backend = backend.get_backend()
+	backend = backend.get_backend()
 
-    d = {}
+	d = {}
 
-    d['info'] = {
-        'module': pipeline[-1].__class__.__module__,
-        'name': pipeline[-1].__class__.__name__,
-    }
+	d['info'] = {
+		'module': pipeline[-1].__class__.__module__,
+		'name': pipeline[-1].__class__.__name__,
+	}
 
-    if d['info']['name'] in BANDED_RIDGE_MODELS:    
-        d['hyperparameters'] = {
-            'deltas_':backend.to_cpu(pipeline[-1].__dict__['deltas_']),
-            'coef_': backend.to_cpu(pipeline[-1].__dict__['coef_'])
-        }
-    else:
-        raise ValueError(f'Model must be a form of banded ridge model')
+	if d['info']['name'] in BANDED_RIDGE_MODELS:    
+		d['hyperparameters'] = {
+			'deltas_':backend.to_cpu(pipeline[-1].__dict__['deltas_']),
+			'coef_': backend.to_cpu(pipeline[-1].__dict__['coef_'])
+		}
+	else:
+		raise ValueError(f'Model must be a form of banded ridge model')
 
-    return d
+	return d
 
 def load_model_from_parameters(d, args={}):
 
 	# make sure we use the backend to cast to type
 	backend = backend.get_backend()
-    
-    module = __import__(model_info['info']['module'], fromlist=[model_info['info']['name']])
-    base_ = getattr(module, model_info['info']['name'])(**args)
+	
+	module = __import__(model_info['info']['module'], fromlist=[model_info['info']['name']])
+	base_ = getattr(module, model_info['info']['name'])(**args)
 
-    for k, v in model_info['hyperparameters'].items():
-        base_.__dict__[k] = backend.to_cpu(v)
-        
-    return base_
+	for k, v in model_info['hyperparameters'].items():
+		base_.__dict__[k] = backend.to_cpu(v)
+		
+	return base_
 
 ##################################
 ##### DOWNSAMPLING FUNCTIONS #####
