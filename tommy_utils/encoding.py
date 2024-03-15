@@ -11,7 +11,7 @@ from sklearn.model_selection import check_cv
 from sklearn.model_selection import KFold
 from sklearn.pipeline import make_pipeline
 
-from himalaya import backend
+from himalaya.backend import get_backend, set_backend
 
 from himalaya.ridge import (
 	ColumnTransformerNoStack,
@@ -641,7 +641,7 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 
 def get_all_banded_metrics(pipeline, X_test, Y_test):
 
-	backend = backend.get_backend()
+	backend = get_backend()
 
 	metrics = {
 		'correlation': getattr(himalaya.scoring, 'correlation_score'),
@@ -687,7 +687,7 @@ def save_model_parameters(pipeline):
 		'MultipleKernelRidgeCV'
 	]
 
-	backend = backend.get_backend()
+	backend = get_backend()
 
 	d = {}
 
@@ -709,8 +709,8 @@ def save_model_parameters(pipeline):
 def load_model_from_parameters(d, args={}):
 
 	# make sure we use the backend to cast to type
-	backend = backend.get_backend()
-	
+	backend = get_backend()
+
 	module = __import__(model_info['info']['module'], fromlist=[model_info['info']['name']])
 	base_ = getattr(module, model_info['info']['name'])(**args)
 
