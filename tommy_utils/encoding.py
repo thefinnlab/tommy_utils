@@ -11,6 +11,7 @@ from sklearn.model_selection import check_cv
 from sklearn.model_selection import KFold
 from sklearn.pipeline import make_pipeline
 
+import himalaya
 from himalaya.backend import get_backend, set_backend
 
 from himalaya.ridge import (
