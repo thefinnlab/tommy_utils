@@ -643,13 +643,13 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 def get_all_banded_metrics(pipeline, X_test, Y_test):
 
 	backend = get_backend()
-
+	
 	print (backend)
 
-	device = pipeline[-1].__dict__['coef_'].device()
+	ref_arr = pipeline[-1].__dict__['coef_']
 
-	X_test = backend.asarray(X_test, device=device)
-	Y_test = backend.asarray(Y_test, device=device)
+	X_test = backend.asarray_like(X_test, ref_arr)
+	Y_test = backend.asarray(Y_test, ref_arr)
 
 	metrics = {
 		'correlation': getattr(himalaya.scoring, 'correlation_score'),
