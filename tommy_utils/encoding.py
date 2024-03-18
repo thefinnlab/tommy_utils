@@ -644,8 +644,12 @@ def get_all_banded_metrics(pipeline, X_test, Y_test):
 
 	backend = get_backend()
 
-	X_test =  backend.asarray(X_test)
-	Y_test =  backend.asarray(Y_test)
+	print (backend)
+
+	device = pipeline[-1].__dict__.coef_.device()
+
+	X_test = backend.asarray(X_test, device=device)
+	Y_test = backend.asarray(Y_test, device=device)
 
 	metrics = {
 		'correlation': getattr(himalaya.scoring, 'correlation_score'),
