@@ -587,18 +587,18 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 					n_targets_batch=N_TARGETS_BATCH, n_alphas_batch=N_ALPHAS_BATCH, 
 					n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
 
-				model = GroupLevelBandedRidge(groups="input", solver=solver, 
+				banded_model = GroupLevelBandedRidge(groups="input", solver=solver, 
 					solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu, force_cpu=force_cpu)
 
 			elif solver == 'random_search':
 				solver_params = dict(n_iter=N_ITER, alphas=ALPHAS, n_targets_batch=N_TARGETS_BATCH,
 					n_alphas_batch=N_ALPHAS_BATCH, n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
 
-				model = BandedRidgeCV(groups="input", solver=solver, 
+				banded_model = BandedRidgeCV(groups="input", solver=solver, 
 					solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu, force_cpu=force_cpu)
 
 
-			pipeline = create_banded_model(mkr_model, delays=delays, feature_space_infos=feature_space_infos, 
+			pipeline = create_banded_model(banded_model, delays=delays, feature_space_infos=feature_space_infos, 
 				n_jobs=n_jobs)
 
 		else:
