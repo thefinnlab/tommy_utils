@@ -695,8 +695,6 @@ def get_all_banded_metrics(pipeline, X_test, Y_test):
 		results[metric] = score
 
 	# now calculate residuals
-	print (Y_test.device)
-
 	results['residuals'] = (Y_test - results['prediction'])
 	results['residuals-split'] = (Y_test - results['prediction-split'])
 
