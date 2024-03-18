@@ -644,6 +644,9 @@ def get_all_banded_metrics(pipeline, X_test, Y_test):
 
 	backend = get_backend()
 
+	X_test =  backend.asarray(X_test)
+	Y_test =  backend.asarray(Y_test)
+
 	metrics = {
 		'correlation': getattr(himalaya.scoring, 'correlation_score'),
 		'correlation-split': getattr(himalaya.scoring, 'correlation_score_split'),
@@ -667,12 +670,13 @@ def get_all_banded_metrics(pipeline, X_test, Y_test):
 		
 		results[metric] = score
 
-	results = {k: np.asarray(backend.to_cpu(v)) for k, v in results.items()}
-
-	# now that things are arrays calculate residuals
+	# now calculate residuals
 	results['residuals'] = (Y_test - results['prediction'])
 	results['residuals-split'] = (Y_test - results['prediction-split'])
-	
+
+	# move to cpu and cast as numpy array
+	results = {k: np.asarray(backend.to_cpu(v)) for k, v in results.items()}
+
 	return results
 
 def save_model_parameters(pipeline):
