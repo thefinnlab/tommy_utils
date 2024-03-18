@@ -640,13 +640,28 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 ##### MODEL SAVING FUNCTIONS ####
 #################################
 
+BANDED_RIDGE_MODELS = [
+	'GroupLevelBandedRidgeCV', 
+	'GroupRidgeCV', 
+	'BandedRidgeCV',
+]
+
+KERNEL_RIDGE_MODELS = [
+	'KernelRidgeCV', 
+	'MultipleKernelRidgeCV'
+]
+
 def get_all_banded_metrics(pipeline, X_test, Y_test):
 
 	backend = get_backend()
-	
-	print (backend)
 
-	ref_arr = pipeline[-1].__dict__['coef_']
+	# cast as same time as pipeleine coefficients 
+	if pipeline[-1].__class__.__name__ in BANDED_RIDGE_MODELS:
+		ref_arr = pipeline[-1].__dict__['coef_']
+	elif pipeline[-1].__class__.__name__ in KERNEL_RIDGE_MODELS:
+		ref_arr = pipeline[-1].__dict__['dual_coef_']
+	else:
+		raise ValueError(f'Model must be a form of banded ridge or kernel ridge model')
 
 	X_test = backend.asarray_like(X_test, ref_arr)
 	Y_test = backend.asarray_like(Y_test, ref_arr)
@@ -688,14 +703,6 @@ def save_model_parameters(pipeline):
 	Given a pipeline used to build 
 	'''
 
-	BANDED_RIDGE_MODELS = [
-		'GroupLevelBandedRidgeCV', 
-		'GroupRidgeCV', 
-		'BandedRidgeCV', 
-		'KernelRidgeCV', 
-		'MultipleKernelRidgeCV'
-	]
-
 	backend = get_backend()
 
 	d = {}
@@ -710,8 +717,13 @@ def save_model_parameters(pipeline):
 			'deltas_':backend.to_cpu(pipeline[-1].__dict__['deltas_']),
 			'coef_': backend.to_cpu(pipeline[-1].__dict__['coef_'])
 		}
+	elif d['info']['name'] in KERNEL_RIDGE_MODELS:  
+		d['hyperparameters'] = {
+			'deltas_':backend.to_cpu(pipeline[-1].__dict__['deltas_']),
+			'dual_coef': backend.to_cpu(pipeline[-1].__dict__['dual_coef_'])
+		}  
 	else:
-		raise ValueError(f'Model must be a form of banded ridge model')
+		raise ValueError(f'Model must be a form of banded ridge or kernel ridge model')
 
 	return d
 
