@@ -35,11 +35,18 @@ import torch.nn.functional as F
 import torchlens as tl
 
 from .delayer import Delayer
-from .custom_solvers import solve_group_level_group_ridge_random_search, GroupLevelBandedRidge
+from .custom_solvers import (
+	GroupLevelBandedRidge,
+	GroupLevelMultipleKernelRidgeCV,
+	solve_group_level_group_ridge_random_search
+	solve_group_level_multiple_kernel_ridge_random_search
+)
+
 from . import nlp
 
 # modify banded ridge to contain our custom solver
 BandedRidgeCV.ALL_SOLVERS['group_level_random_search'] = solve_group_level_group_ridge_random_search
+MultipleKernelRidgeCV.ALL_SOLVERS['group_level_random_search'] = solve_group_level_multiple_kernel_ridge_random_search
 
 ENCODING_FEATURES = {
 	'visual': [
@@ -610,16 +617,34 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 			## TLB --> TRY ADDING IN RETURN_WEIGHTS AND SEE WHAT HAPPENS
 			solver_function = MultipleKernelRidgeCV.ALL_SOLVERS[solver]
 
-			if solver == 'random_search':
+			if solver == 'group_level_random_search':
+
+				if not all([y.shape == Y[0].shape for y in Y]):
+					raise ValueError("To use group level random search, all "
+						"groups need to have same number of samples.")
+
+				n_samples_group = Y[0].shape[0]
+
+				solver_params = dict(n_samples_group=n_samples_group, n_iter=N_ITER, alphas=ALPHAS, 
+					n_targets_batch=N_TARGETS_BATCH, n_alphas_batch=N_ALPHAS_BATCH, 
+					n_targets_batch_refit=N_TARGETS_BATCH_REFIT, Ks_in_cpu=force_cpu)
+
+				mkr_model = GroupLevelMultipleKernelRidgeCV(kernels="precomputed", solver=solver, 
+					solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu)
+				
+			elif solver == 'random_search':
 				solver_params = dict(n_iter=N_ITER, alphas=ALPHAS, n_targets_batch=N_TARGETS_BATCH,
 					n_alphas_batch=N_ALPHAS_BATCH, n_targets_batch_refit=N_TARGETS_BATCH_REFIT,Ks_in_cpu=force_cpu)
+
+				mkr_model = MultipleKernelRidgeCV(kernels="precomputed", solver=solver,
+								  solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu)
 
 			elif solver == 'hyper_gradient':
 				solver_params = dict(max_iter=N_ITER, n_targets_batch=N_TARGETS_BATCH, tol=1e-3,
 					initial_deltas="ridgecv", max_iter_inner_hyper=1, hyper_gradient_method="direct")
 
-			mkr_model = MultipleKernelRidgeCV(kernels="precomputed", solver=solver,
-											  solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu)
+				mkr_model = MultipleKernelRidgeCV(kernels="precomputed", solver=solver,
+												  solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu)
 
 			pipeline = create_banded_model(mkr_model, delays=delays, feature_space_infos=feature_space_infos, 
 				kernel="linear", n_jobs=n_jobs, force_cpu=force_cpu)
