@@ -38,7 +38,7 @@ from .delayer import Delayer
 from .custom_solvers import (
 	GroupLevelBandedRidge,
 	GroupLevelMultipleKernelRidgeCV,
-	solve_group_level_group_ridge_random_search
+	solve_group_level_group_ridge_random_search,
 	solve_group_level_multiple_kernel_ridge_random_search
 )
 
