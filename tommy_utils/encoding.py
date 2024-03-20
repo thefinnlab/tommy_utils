@@ -634,7 +634,7 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 				
 			elif solver == 'random_search':
 				solver_params = dict(n_iter=N_ITER, alphas=ALPHAS, n_targets_batch=N_TARGETS_BATCH,
-					n_alphas_batch=N_ALPHAS_BATCH, n_targets_batch_refit=N_TARGETS_BATCH_REFIT,Ks_in_cpu=force_cpu)
+					n_alphas_batch=N_ALPHAS_BATCH, n_targets_batch_refit=N_TARGETS_BATCH_REFIT, Ks_in_cpu=force_cpu)
 
 				mkr_model = MultipleKernelRidgeCV(kernels="precomputed", solver=solver,
 								  solver_params=solver_params, cv=inner_cv, Y_in_cpu=Y_in_cpu)
@@ -666,14 +666,15 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 #################################
 
 BANDED_RIDGE_MODELS = [
-	'GroupLevelBandedRidgeCV', 
 	'GroupRidgeCV', 
 	'BandedRidgeCV',
+	'GroupLevelBandedRidgeCV', 
 ]
 
 KERNEL_RIDGE_MODELS = [
 	'KernelRidgeCV', 
-	'MultipleKernelRidgeCV'
+	'MultipleKernelRidgeCV',
+	'GroupLevelMultipleKernelRidgeCV'
 ]
 
 def get_all_banded_metrics(pipeline, X_test, Y_test):
