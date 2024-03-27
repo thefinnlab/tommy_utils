@@ -13,6 +13,7 @@ from gensim import downloader as api
 import fasttext.util as ftutil
 
 #### STUFF FOR TRANSFORMERS ######
+import torch
 from torch.nn import functional as F
 from scipy.special import rel_entr, kl_div
 from scipy import stats
