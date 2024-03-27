@@ -2,6 +2,7 @@ import os
 import numpy as np
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
+from joblib import Parallel, delayed
 
 ############################
 #### BRAINIAK FUNCTIONS ####
@@ -68,8 +69,6 @@ def array_correlation(x, y, axis=0):
 ##################################
 ##### PERMUTATION FUNCTIONS ######
 ##################################
-
-from joblib import Parallel, delayed
 
 def make_random_indices(n_items, n_perms, method='choice', max_random_seed=2**32-1):
 	
