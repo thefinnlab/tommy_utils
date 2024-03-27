@@ -8,6 +8,18 @@ import numpy as np
 from matplotlib import cm
 from matplotlib.colors import TwoSlopeNorm
 from matplotlib import ticker
+
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import ImageGrid
+
+import sys
+
+# sys.path.append('/dartfs/rc/lab/F/FinnLab/tommy/dark_matter/code/utils/surfplot/')
+from surfplot import Plot
+from neuromaps.transforms import mni152_to_fslr, mni152_to_fsaverage, mni152_to_civet
+from neuromaps.datasets import fetch_fslr, fetch_fsaverage, fetch_civet
+from collections import defaultdict
+from matplotlib.colors import ListedColormap
 # import umap
 
 def draw_umap(data, colors, n_neighbors=15, min_dist=0.1, random_state=42, n_components=2, metric='euclidean', title='', s=10, cmap='jet'):
@@ -238,9 +250,6 @@ def plot_correlation_matrices(out_fn, title, n_values, matrices, labels, idxs, v
 
 ##### FOR COMBINING ACROSS TASKS #####
 
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import ImageGrid
-
 def combine_images(columns, images, row_names=None, column_names=None, title=None, legend=None, fig_size=(16, 4), pad=5, out_fn=None):
 		
 		rows = len(images) // columns
@@ -297,15 +306,6 @@ def combine_images(columns, images, row_names=None, column_names=None, title=Non
 ############################################
 ############ SURFPLOT PLOTTING #############
 ############################################
-import sys
-
-sys.path.append('/dartfs/rc/lab/F/FinnLab/tommy/dark_matter/code/utils/surfplot/')
-
-from surfplot import Plot
-from neuromaps.transforms import mni152_to_fslr, mni152_to_fsaverage, mni152_to_civet
-from neuromaps.datasets import fetch_fslr, fetch_fsaverage, fetch_civet
-from collections import defaultdict
-from matplotlib.colors import ListedColormap
 
 def make_layers_dict(data, cmap, alpha=0.75, label=None, color_range=None, cbar=True):
 
