@@ -319,7 +319,11 @@ def subwords_to_words(sentence, tokenizer):
 	word_token_pairs = []
 	
 	# split the sentence on spaces + punctuation (excluding apostrophes and hyphens within words)
-	for m in re.finditer(r"[\w]+[’'-]?[\w]*", sentence):
+	regex_split_pattern = r'(\w|\.\w|\:\w|\’\w|\'\w|\-\w|\S)+'
+
+	# regex_split_pattern = r"[\w]+[’'.-:]?[\w]*"
+
+	for m in re.finditer(regex_split_pattern, sentence):
 		word = m.group(0)
 		tokens = tokenizer.encode(word, add_special_tokens=False)
 		char_idxs = (m.start(), m.end()-1)
