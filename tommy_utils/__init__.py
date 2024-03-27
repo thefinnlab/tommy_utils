@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 Utils that Tommy uses for projects
 """
