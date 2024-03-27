@@ -145,10 +145,12 @@ def create_phoneme_features(df_transcript):
 			phoneme = item['phone'].split('_')[0].upper()
 			one_hot_phoneme = np.asarray(CMU_PHONEMES['phoneme'] == phoneme).astype(int)
 		
-			# ensure that vector is truly one hot
+			# ensure that vector is truly one hot --> if not skip
 			if sum(one_hot_phoneme) != 1:
-				print (i)
-			assert (sum(one_hot_phoneme) == 1)
+				print (f'Word {i} - skipping phoneme: {phoneme}')
+				phoneme_start += item['duration']
+				continue
+			# assert (sum(one_hot_phoneme) == 1)
 		
 			# then save the phoneme start + one hot vector and increment time
 			phoneme_info = (phoneme_start, one_hot_phoneme)
