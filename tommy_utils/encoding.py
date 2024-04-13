@@ -679,7 +679,7 @@ KERNEL_RIDGE_MODELS = [
 	'GroupLevelMultipleKernelRidgeCV'
 ]
 
-def get_all_banded_metrics(pipeline, X_test, Y_test):
+def get_all_banded_metrics(pipeline, X_test, Y_test, use_split=False):
 
 	backend = get_backend()
 
@@ -694,6 +694,8 @@ def get_all_banded_metrics(pipeline, X_test, Y_test):
 	X_test = backend.asarray_like(X_test, ref_arr)
 	Y_test = backend.asarray_like(Y_test, ref_arr)
 
+	results = {}
+
 	metrics = {
 		'correlation': getattr(himalaya.scoring, 'correlation_score'),
 		'correlation-split': getattr(himalaya.scoring, 'correlation_score_split'),
@@ -701,30 +703,33 @@ def get_all_banded_metrics(pipeline, X_test, Y_test):
 		'r2-split': getattr(himalaya.scoring, 'r2_score_split')
 	}
 
-	# predict
+	# predict and make as same type of array as Y_test
 	Y_pred = pipeline.predict(X_test)
-	Y_pred_split = pipeline.predict(X_test, split=True)
-
-	# now case as same type of array as Y_test
 	Y_pred = backend.asarray_like(Y_pred, Y_test)
-	Y_pred_split = backend.asarray_like(Y_pred_split, Y_test)
+	results['prediction'] = Y_pred
 
-	results = {
-		'prediction': Y_pred,
-		'prediction-split': Y_pred_split,
-	}
+	if use_split:
+		Y_pred_split = pipeline.predict(X_test, split=True)
+		Y_pred_split = backend.asarray_like(Y_pred_split, Y_test)
+		results['prediction-split'] = Y_pred_split
 
 	for metric, fx in metrics.items():
+
 		if 'split' in metric:
-			score = fx(Y_test, Y_pred)
+			if use_split:
+				score = fx(Y_test, Y_pred)
+			else:
+				continue
 		else:
 			score = fx(Y_test, Y_pred)
-		
+
 		results[metric] = score
 
 	# now calculate residuals
 	results['residuals'] = (Y_test - results['prediction'])
-	results['residuals-split'] = (Y_test - results['prediction-split'])
+
+	if use_split:
+		results['residuals-split'] = (Y_test - results['prediction-split'])
 
 	# move to cpu and cast as numpy array
 	results = {k: np.asarray(backend.to_cpu(v)) for k, v in results.items()}
