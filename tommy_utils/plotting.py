@@ -379,7 +379,7 @@ def numpy_to_fsaverage(ds, density='164k', map_type='inflated'):
 	for name, hemi in zip(hemi_names, hemis):
 		# Create new surface data objects for left and right hemispheres
 		surf = nib.gifti.GiftiImage()
-		surf_array = nib.gifti.GiftiDataArray(hemi)
+		surf_array = nib.gifti.GiftiDataArray(hemi, intent='NIFTI_INTENT_SHAPE', datatype='NIFTI_TYPE_FLOAT32')
 		surf.add_gifti_data_array(surf_array)
 		data[name] = surf
 	
