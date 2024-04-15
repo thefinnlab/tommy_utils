@@ -371,7 +371,7 @@ def numpy_to_fsaverage(ds, density='164k', map_type='inflated'):
 	hemis = np.split(ds, 2)
 	hemi_names = ['left', 'right']
 	
-	surfs = fetch_fsaverage(density)
+	surfaces = fetch_fsaverage(density)
 	surfs = surfaces[map_type]
 	
 	data = {}
