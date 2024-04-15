@@ -60,6 +60,7 @@ ENCODING_FEATURES = {
 		'phoneme',
 		'word2vec',
 		'gpt2',
+		'gpt2-xl',
 	]
 }
 
