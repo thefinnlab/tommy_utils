@@ -49,24 +49,24 @@ def draw_umap(data, colors, n_neighbors=15, min_dist=0.1, random_state=42, n_com
 
 def plot_colorbar(vmin, vmax, nticks=5, direction='horizontal', cmap='RdBu_r', out_fn=None):
 	
-    fig = plt.figure()
-    
-    values = np.random.randn(10)
-    
-    divnorm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
-    psm = plt.pcolormesh([-values, values], norm=divnorm, cmap=cmap)
-    plt.clf()
-    
-    # xloc, yloc, size x, size y
-    if direction == 'horizontal':
-        cbar_ax = fig.add_axes([0.5, 0, 0.6, 0.05])
-    elif direction == 'vertical':
-        cbar_ax = fig.add_axes([0.5, 0, 0.05, 0.6])
-    
-    fig.colorbar(psm, cax=cbar_ax, orientation=direction, ticks=ticker.MaxNLocator(nbins=nticks))
-    
-    if out_fn:
-        plt.savefig(out_fn, bbox_inches='tight', transparent=True)
+	fig = plt.figure()
+	
+	values = np.random.randn(10)
+	
+	divnorm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
+	psm = plt.pcolormesh([-values, values], norm=divnorm, cmap=cmap)
+	plt.clf()
+	
+	# xloc, yloc, size x, size y
+	if direction == 'horizontal':
+		cbar_ax = fig.add_axes([0.5, 0, 0.6, 0.05])
+	elif direction == 'vertical':
+		cbar_ax = fig.add_axes([0.5, 0, 0.05, 0.6])
+	
+	fig.colorbar(psm, cax=cbar_ax, orientation=direction, ticks=ticker.MaxNLocator(nbins=nticks))
+	
+	if out_fn:
+		plt.savefig(out_fn, bbox_inches='tight', transparent=True)
 
 # for "pairs" of any length
 def chunkwise(t, size=2):
@@ -344,7 +344,7 @@ def create_depth_map(surf_type='fslr'):
 
 	return depth
 
-def vol_to_surf(ds, surf_type='fslr', map_type='inflated'):
+def vol_to_surf(ds, surf_type='fsaverage', map_type='inflated'):
 	
 	if surf_type == 'fsaverage':
 		surfaces = fetch_fsaverage()
@@ -358,6 +358,30 @@ def vol_to_surf(ds, surf_type='fslr', map_type='inflated'):
 		
 	surfs = surfaces[map_type]
 	data = {'left': data_lh, 'right': data_rh}
+	
+	return surfs, data
+
+def numpy_to_fsaverage(ds, density='164k', map_type='inflated'):
+	'''
+	Takes a numpy array surface and makes a gifti surface ready
+	for plotting 
+	'''
+
+	ds = ds.astype('float32')
+	hemis = np.split(ds, 2)
+	hemi_names = ['left', 'right']
+	
+	surfs = fetch_fsaverage(density)
+	surfs = surfaces[map_type]
+	
+	data = {}
+	
+	for name, hemi in zip(hemi_names, hemis):
+		# Create new surface data objects for left and right hemispheres
+		surf = nib.gifti.GiftiImage()
+		surf_array = nib.gifti.GiftiDataArray(hemi)
+		surf.add_gifti_data_array(surf_array)
+		data[name] = surf
 	
 	return surfs, data
 
