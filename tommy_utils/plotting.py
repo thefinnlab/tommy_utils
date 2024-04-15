@@ -16,7 +16,7 @@ import sys
 
 # sys.path.append('/dartfs/rc/lab/F/FinnLab/tommy/dark_matter/code/utils/surfplot/')
 from surfplot import Plot
-from neuromaps.transforms import mni152_to_fslr, mni152_to_fsaverage, mni152_to_civet
+from neuromaps.transforms import mni152_to_fslr, mni152_to_fsaverage, mni152_to_civet, _estimate_density
 from neuromaps.datasets import fetch_fslr, fetch_fsaverage, fetch_civet
 from collections import defaultdict
 from matplotlib.colors import ListedColormap
@@ -347,7 +347,7 @@ def create_depth_map(surf_type='fsaverage', target_density='41k'):
 
 	return depth
 
-def vol_to_surf(ds, surf_type='fsaverage', map_type='inflated', target_density='164k'):
+def vol_to_surf(ds, surf_type='fsaverage', map_type='inflated', target_density='41k'):
 	
 	if surf_type == 'fsaverage':
 		assert (target_density in ['3k', '10k', '41k', '164k'])
@@ -407,7 +407,9 @@ def plot_surf_data(surfs, layers_info, surf_type='fslr', views=['lateral', 'medi
 
 	# if we want to add depth insert into the start of the list
 	if add_depth:
-		depth = create_depth_map(surf_type=surf_type)
+		density_est = (layers_info[0]['data']['left'], layers_info[0]['data']['right'])
+		density = _estimate_density((density_est,), hemi=None)
+		depth = create_depth_map(surf_type=surf_type, target_density=density)
 		layers_info.insert(0, depth)
 	
 	for layer in layers_info:
