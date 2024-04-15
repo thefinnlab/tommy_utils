@@ -322,14 +322,17 @@ def make_layers_dict(data, cmap, alpha=0.75, label=None, color_range=None, cbar=
 def sigmoid(x):
 	return 1 / (1 + np.exp(-x))
 
-def create_depth_map(surf_type='fslr'):
+def create_depth_map(surf_type='fsaverage', target_density='41k'):
 
 	if surf_type == 'fsaverage':
-		surfaces = fetch_fsaverage()
+		assert (target_density in ['3k', '10k', '41k', '164k'])
+		surfaces = fetch_fsaverage(density=target_density)
 	elif surf_type == 'fslr':
-		surfaces = fetch_fslr()
+		assert (target_density in ['4k', '8k', '32k', '164k'])
+		surfaces = fetch_fslr(density=target_density)
 	elif surf_type == 'civet':
-		surfaces = fetch_civet()
+		assert (target_density in ['41k', '164k'])
+		surfaces = fetch_civet(density=target_density)
 
 	# create the cmap for the depth map
 	cmap = plt.get_cmap('Greys_r')
@@ -344,16 +347,19 @@ def create_depth_map(surf_type='fslr'):
 
 	return depth
 
-def vol_to_surf(ds, surf_type='fsaverage', map_type='inflated'):
+def vol_to_surf(ds, surf_type='fsaverage', map_type='inflated', target_density='164k'):
 	
 	if surf_type == 'fsaverage':
-		surfaces = fetch_fsaverage()
+		assert (target_density in ['3k', '10k', '41k', '164k'])
+		surfaces = fetch_fsaverage(density=target_density)
 		data_lh, data_rh = mni152_to_fsaverage(ds)
 	elif surf_type == 'fslr':
-		surfaces = fetch_fslr()
+		assert (target_density in ['4k', '8k', '32k', '164k'])
+		surfaces = fetch_fslr(density=target_density)
 		data_lh, data_rh = mni152_to_fslr(ds)
 	elif surf_type == 'civet':
-		surfaces = fetch_civet()
+		assert (target_density in ['41k', '164k'])
+		surfaces = fetch_civet(density=target_density)
 		data_lh, data_rh = mni152_to_civet(ds)
 		
 	surfs = surfaces[map_type]
@@ -361,7 +367,7 @@ def vol_to_surf(ds, surf_type='fsaverage', map_type='inflated'):
 	
 	return surfs, data
 
-def numpy_to_fsaverage(ds, density='164k', map_type='inflated'):
+def numpy_to_fsaverage(ds, map_type='inflated'):
 	'''
 	Takes a numpy array surface and makes a gifti surface ready
 	for plotting 
@@ -369,20 +375,25 @@ def numpy_to_fsaverage(ds, density='164k', map_type='inflated'):
 
 	ds = ds.astype('float32')
 	hemis = np.split(ds, 2)
-	hemi_names = ['left', 'right']
-	
-	surfaces = fetch_fsaverage(density)
-	surfs = surfaces[map_type]
-	
-	data = {}
-	
-	for name, hemi in zip(hemi_names, hemis):
+
+	data = []
+
+	for hemi in zip(hemis):
 		# Create new surface data objects for left and right hemispheres
 		surf = nib.gifti.GiftiImage()
 		surf_array = nib.gifti.GiftiDataArray(hemi, intent='NIFTI_INTENT_SHAPE', datatype='NIFTI_TYPE_FLOAT32')
 		surf.add_gifti_data_array(surf_array)
-		data[name] = surf
-	
+		data.append(surf)
+
+	data = tuple(data)
+	density, = _estimate_density((data,), hemi=None)
+
+	surfaces = fetch_fsaverage(density)
+	surfs = surfaces[map_type]
+
+	data_lh, data_rh = data
+	data = {'left': data_lh, 'right': data_rh}
+
 	return surfs, data
 
 def plot_surf_data(surfs, layers_info, surf_type='fslr', views=['lateral', 'medial'], zoom=1.35, brightness=0.8, scale=(10,10), 
