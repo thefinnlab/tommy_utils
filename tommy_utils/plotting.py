@@ -408,7 +408,7 @@ def plot_surf_data(surfs, layers_info, surf_type='fslr', views=['lateral', 'medi
 	# if we want to add depth insert into the start of the list
 	if add_depth:
 		density_est = (layers_info[0]['data']['left'], layers_info[0]['data']['right'])
-		density = _estimate_density((density_est,), hemi=None)
+		density, = _estimate_density((density_est,), hemi=None)
 		depth = create_depth_map(surf_type=surf_type, target_density=density)
 		layers_info.insert(0, depth)
 	
