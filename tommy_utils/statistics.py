@@ -97,16 +97,11 @@ def make_random_indices(n_items, n_perms, method='choice', max_random_seed=2**32
 		
 	return random_idxs
 
-def block_permutation_test(true, pred, metric, block_size=10, n_perms=1000, N_PROC=1, scratch_dir=None):
+def block_permutation_test(true, pred, metric, block_size=10, n_perms=1000, N_PROC=1):
 	'''
 	Block permutation test of model predictions
 	Adapted from https://github.com/HuthLab/deep-fMRI-dataset/blob/master/encoding/significance_testing.py
 	'''
-
-	def metric_fx(metric, true, pred, save_fn):
-		result = metric(true, pred)
-		np.save(save_fn, result)
-		return save_fn
 	
 	# set the number of blocks based on size array --> get permutation indices
 	n_blocks = int(true.shape[0] / block_size)
@@ -116,27 +111,22 @@ def block_permutation_test(true, pred, metric, block_size=10, n_perms=1000, N_PR
 	block_true = np.dstack(np.vsplit(true, n_blocks)).transpose((2,0,1))
 #     block_pred = np.dstack(np.vsplit(pred, n_blocks)).transpose((2,0,1))
 
-	jobs = []
-	for i, perm in enumerate(perm_idxs):
+	# jobs = []
+	permutations = []
+
+	for perm in perm_idxs:
 		# create job for current iteration
 		# permute true timeseries and compare with predicted
-		perm_true = np.vstack(block_true[perm, ...])
+		# job = delayed(metric)(np.vstack(block_true[perm, ...]), pred)
+		# jobs.append(job)
 
-		if scratch_dir:
-			save_fn = os.path.join(scratch_dir, f'temp-{str(i).zfill(5)}.npy')
-			job = delayed(metric_fx)(metric, perm_true, pred, save_fn)
-		else:
-			job = delayed(metric)(np.vstack(block_true[perm, ...]), pred)
+		result = metric(np.vstack(block_true[perm, ...]), pred)
+		permutations.append(result)
 
-		jobs.append(job)
-
-	with Parallel(n_jobs=N_PROC) as parallel:
-		permutations = parallel(jobs)
-	
-	if scratch_dir:
-		permutations = np.stack([np.load(fn) for fn in permutations])
-	else:
-		permutations = np.stack(permutations)
+	# with Parallel(n_jobs=N_PROC) as parallel:
+	# 	permutations = parallel(jobs)
+		
+	permutations = np.stack(permutations)
 	
 	return permutations
 
