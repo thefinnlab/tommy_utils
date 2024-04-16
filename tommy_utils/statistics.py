@@ -117,17 +117,17 @@ def block_permutation_test(true, pred, metric, block_size=10, n_perms=1000, N_PR
 #     block_pred = np.dstack(np.vsplit(pred, n_blocks)).transpose((2,0,1))
 
 	jobs = []
-	for perm in perm_idxs:
+	for i, perm in enumerate(perm_idxs):
 		# create job for current iteration
 		# permute true timeseries and compare with predicted
 		perm_true = np.vstack(block_true[perm, ...])
 
 		if scratch_dir:
-			save_fn = os.path.join(scratch_dir, f'temp-{perm.zfill(5)}.npy')
+			save_fn = os.path.join(scratch_dir, f'temp-{str(i).zfill(5)}.npy')
 			job = delayed(metric_fx)(metric, perm_true, pred, save_fn)
 		else:
 			job = delayed(metric)(np.vstack(block_true[perm, ...]), pred)
-		
+
 		jobs.append(job)
 
 	with Parallel(n_jobs=N_PROC) as parallel:
