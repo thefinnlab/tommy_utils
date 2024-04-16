@@ -347,20 +347,20 @@ def create_depth_map(surf_type='fsaverage', target_density='41k'):
 
 	return depth
 
-def vol_to_surf(ds, surf_type='fsaverage', map_type='inflated', target_density='41k'):
+def vol_to_surf(ds, surf_type='fsaverage', map_type='inflated', target_density='41k', method='linear'):
 	
 	if surf_type == 'fsaverage':
 		assert (target_density in ['3k', '10k', '41k', '164k'])
 		surfaces = fetch_fsaverage(density=target_density)
-		data_lh, data_rh = mni152_to_fsaverage(ds)
+		data_lh, data_rh = mni152_to_fsaverage(ds, method=method)
 	elif surf_type == 'fslr':
 		assert (target_density in ['4k', '8k', '32k', '164k'])
 		surfaces = fetch_fslr(density=target_density)
-		data_lh, data_rh = mni152_to_fslr(ds)
+		data_lh, data_rh = mni152_to_fslr(ds, method=method)
 	elif surf_type == 'civet':
 		assert (target_density in ['41k', '164k'])
 		surfaces = fetch_civet(density=target_density)
-		data_lh, data_rh = mni152_to_civet(ds)
+		data_lh, data_rh = mni152_to_civet(ds, method=method)
 		
 	surfs = surfaces[map_type]
 	data = {'left': data_lh, 'right': data_rh}
