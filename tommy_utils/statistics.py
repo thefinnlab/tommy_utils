@@ -114,7 +114,7 @@ def block_permutation_test(true, pred, metric, block_size=10, n_perms=1000, N_PR
 	# jobs = []
 	permutations = []
 
-	for perm in perm_idxs:
+	for i, perm in enumerate(perm_idxs):
 		# create job for current iteration
 		# permute true timeseries and compare with predicted
 		# job = delayed(metric)(np.vstack(block_true[perm, ...]), pred)
@@ -122,6 +122,8 @@ def block_permutation_test(true, pred, metric, block_size=10, n_perms=1000, N_PR
 
 		result = metric(np.vstack(block_true[perm, ...]), pred)
 		permutations.append(result)
+
+		print (f'Finished {i+1}/{n_perms}', flush=True)
 
 	# with Parallel(n_jobs=N_PROC) as parallel:
 	# 	permutations = parallel(jobs)
