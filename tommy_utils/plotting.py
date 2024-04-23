@@ -367,7 +367,7 @@ def vol_to_surf(ds, surf_type='fsaverage', map_type='inflated', target_density='
 	
 	return surfs, data
 
-def numpy_to_fsaverage(ds, map_type='inflated'):
+def numpy_to_surface(ds, surf_type='fsaverage', map_type='inflated'):
 	'''
 	Takes a numpy array surface and makes a gifti surface ready
 	for plotting 
@@ -388,9 +388,17 @@ def numpy_to_fsaverage(ds, map_type='inflated'):
 	data = tuple(data)
 	density, = _estimate_density((data,), hemi=None)
 
-	surfaces = fetch_fsaverage(density)
-	surfs = surfaces[map_type]
+	if surf_type == 'fsaverage':
+		assert (density in ['3k', '10k', '41k', '164k'])
+		surfaces = fetch_fsaverage(density)
+	elif surf_type == 'fslr':
+		assert (density in ['4k', '8k', '32k', '164k'])
+		surfaces = fetch_fslr(density=density)
+	elif surf_type == 'civet':
+		assert (density in ['41k', '164k'])
+		surfaces = fetch_civet(density=density)
 
+	surfs = surfaces[map_type]
 	data_lh, data_rh = data
 	data = {'left': data_lh, 'right': data_rh}
 
