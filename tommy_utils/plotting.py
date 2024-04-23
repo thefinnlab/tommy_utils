@@ -378,7 +378,7 @@ def numpy_to_surface(ds, surf_type='fsaverage', map_type='inflated'):
 
 	data = []
 
-	for hemi in zip(hemis):
+	for hemi in hemis:
 		# Create new surface data objects for left and right hemispheres
 		surf = nib.gifti.GiftiImage()
 		surf_array = nib.gifti.GiftiDataArray(hemi.squeeze(), intent='NIFTI_INTENT_SHAPE', datatype='NIFTI_TYPE_FLOAT32')
