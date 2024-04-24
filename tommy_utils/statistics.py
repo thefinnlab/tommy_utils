@@ -146,19 +146,24 @@ def timeshift_permutation_test(true, pred, metric, n_perms=1000, N_PROC=1, scrat
 	# random_state = None
 	# distribution = []
 
-	jobs = []
+	permutations = []
 
-	for shift in shift_idxs:
+	for i, shift in enumerate(shift_idxs):
 		# results in a shifted timeseries for the current subject
 		shifted = np.concatenate((true[-shift:, :], true[:-shift, :]))
 
-		# create job for current iteration
-		# permute true timeseries and compare with predicted
-		job = delayed(metric)(shifted, pred)
-		jobs.append(job)
+		result = metric(shifted, pred)
+		permutations.append(result)
 
-	with Parallel(n_jobs=N_PROC) as parallel:
-		permutations = parallel(jobs)
+		print (f'Finished {i+1}/{n_perms}', flush=True)
+
+		# # create job for current iteration
+		# # permute true timeseries and compare with predicted
+		# job = delayed(metric)(shifted, pred)
+		# jobs.append(job)
+
+	# with Parallel(n_jobs=N_PROC) as parallel:
+	# 	permutations = parallel(jobs)
 		
 	permutations = np.stack(permutations)
 	
