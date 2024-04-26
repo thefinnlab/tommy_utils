@@ -389,7 +389,7 @@ def numpy_to_surface(ds, surf_type='fsaverage', map_type='inflated', target_dens
 	density, = _estimate_density((data,), hemi=None)
 
 	if density != target_density:
-		data = fsaverage_to_fsaverage(data, target_density=density, method=method)
+		data = fsaverage_to_fsaverage(data, target_density=target_density, method=method)
 		density = target_density
 
 	if surf_type == 'fsaverage':
