@@ -16,7 +16,7 @@ import sys
 
 # sys.path.append('/dartfs/rc/lab/F/FinnLab/tommy/dark_matter/code/utils/surfplot/')
 from surfplot import Plot
-from neuromaps.transforms import mni152_to_fslr, mni152_to_fsaverage, mni152_to_civet, _estimate_density
+from neuromaps.transforms import mni152_to_fslr, mni152_to_fsaverage, mni152_to_civet, _estimate_density, fsaverage_to_fsaverage
 from neuromaps.datasets import fetch_fslr, fetch_fsaverage, fetch_civet
 from collections import defaultdict
 from matplotlib.colors import ListedColormap
