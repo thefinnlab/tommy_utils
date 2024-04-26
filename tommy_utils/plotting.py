@@ -367,7 +367,7 @@ def vol_to_surf(ds, surf_type='fsaverage', map_type='inflated', target_density='
 	
 	return surfs, data
 
-def numpy_to_surface(ds, surf_type='fsaverage', map_type='inflated'):
+def numpy_to_surface(ds, surf_type='fsaverage', map_type='inflated', target_density='41k', method='linear'):
 	'''
 	Takes a numpy array surface and makes a gifti surface ready
 	for plotting 
@@ -387,6 +387,10 @@ def numpy_to_surface(ds, surf_type='fsaverage', map_type='inflated'):
 
 	data = tuple(data)
 	density, = _estimate_density((data,), hemi=None)
+
+	if density != 'target_density':
+		data = fsaverage_to_fsaverage(data, target_density=density, method=method)
+		density = target_density
 
 	if surf_type == 'fsaverage':
 		assert (density in ['3k', '10k', '41k', '164k'])
