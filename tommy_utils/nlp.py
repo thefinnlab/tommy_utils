@@ -164,11 +164,14 @@ def load_clm_model(model_name, cache_dir=None):
 	   tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 	
 	if model_name in ['electra', 'xlm-prophetnet']:
-		config = AutoConfig.from_pretrained(CLM_MODELS_DICT[model_name])
+		config = AutoConfig.from_pretrained(MLM_MODELS_DICT[model_name])
 		config.is_decoder = True
-		model = AutoModelForCausalLM.from_pretrained(CLM_MODELS_DICT[model_name], config=config)
+		model = AutoModelForCausalLM.from_pretrained(MLM_MODELS_DICT[model_name], config=config)
 	else:
-		model = AutoModelForCausalLM.from_pretrained(CLM_MODELS_DICT[model_name])
+		if model_name == 'roberta':
+			model = AutoModelForCausalLM.from_pretrained(MLM_MODELS_DICT[model_name])
+		else:
+			model = AutoModelForCausalLM.from_pretrained(CLM_MODELS_DICT[model_name])
 
 	model.eval()
 	
