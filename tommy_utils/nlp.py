@@ -153,7 +153,7 @@ def load_clm_model(model_name, cache_dir=None):
 
 	from transformers import AutoTokenizer, AutoModel, AutoConfig, AutoModelForCausalLM, AutoModelForMaskedLM, AutoModelWithLMHead
 		
-	if model_name not in CLM_MODELS_DICT:
+	if (model_name not in CLM_MODELS_DICT) and (model_name not in MLM_MODELS_DICT):
 		print (f'Model not in dictionary - please download and add it to the dictionary')
 		sys.exit(0)
 	
