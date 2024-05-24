@@ -4,6 +4,9 @@ from scipy import stats
 from statsmodels.stats.multitest import multipletests
 from joblib import Parallel, delayed
 
+def log_odds(x):
+	return np.log((x/ (1-x)))
+	
 ############################
 #### BRAINIAK FUNCTIONS ####
 ############################
