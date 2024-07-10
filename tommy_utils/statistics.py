@@ -69,6 +69,8 @@ def array_correlation(x, y, axis=0):
 	denominator = np.sqrt(np.sum(x_demean ** 2, axis=0) *
 						  np.sum(y_demean ** 2, axis=0))
 
+	return numerator / denominator
+
 ##################################
 ##### PERMUTATION FUNCTIONS ######
 ##################################
