@@ -301,8 +301,8 @@ def transcript_to_input(df_transcript, idxs, add_punctuation=False):
 			item = row['word'] + row['punctuation']
 		else:
 			item = row['word']
-		
-		inputs.append(item.strip())
+
+		inputs.append(item.astype(str).strip())
 	
 	# join together into the sentence to submit
 	inputs = ' '.join(inputs)
