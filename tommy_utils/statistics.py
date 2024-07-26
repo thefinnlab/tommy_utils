@@ -109,7 +109,7 @@ def block_permutation_test(true, pred, metric, block_size=10, n_perms=1000, N_PR
 	'''
 
 	# if the array can't be evenly divided 
-	mod = true.shape[0] % block_size
+	mod = block_size - (true.shape[0] % block_size)
 
 	if (padding and mod):
 		padding = np.random.randn(mod, true.shape[1])
