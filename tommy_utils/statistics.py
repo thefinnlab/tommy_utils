@@ -107,10 +107,6 @@ def block_permutation_test(true, pred, metric, block_size=10, n_perms=1000, N_PR
 	Block permutation test of model predictions
 	Adapted from https://github.com/HuthLab/deep-fMRI-dataset/blob/master/encoding/significance_testing.py
 	'''
-	
-	# set the number of blocks based on size array --> get permutation indices
-	n_blocks = int(true.shape[0] / block_size)
-	perm_idxs = make_random_indices(n_items=n_blocks, n_perms=n_perms, method='permutation')
 
 	# if the array can't be evenly divided 
 	mod = true.shape[0] % block_size
@@ -122,6 +118,10 @@ def block_permutation_test(true, pred, metric, block_size=10, n_perms=1000, N_PR
 	elif (not padding and mod):
 		raise ValueError(f'Supplied array of size {true.shape} needs to be evenly divisible by block_size {block_size}')
 	
+	# set the number of blocks based on size array --> get permutation indices
+	n_blocks = int(true.shape[0] / block_size)
+	perm_idxs = make_random_indices(n_items=n_blocks, n_perms=n_perms, method='permutation')
+
 	# decompose into blocks
 	block_true = np.dstack(np.vsplit(true, n_blocks)).transpose((2,0,1))
 #     block_pred = np.dstack(np.vsplit(pred, n_blocks)).transpose((2,0,1))
