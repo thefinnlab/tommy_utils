@@ -119,7 +119,7 @@ def block_permutation_test(true, pred, metric, block_size=10, n_perms=1000, N_PR
 		padding = np.random.randn(mod, true.shape[1])
 		true = np.vstack([true, padding])
 		pred = np.vstack([pred, padding])
-	else:
+	elif (not padding and mod):
 		raise ValueError(f'Supplied array of size {true.shape} needs to be evenly divisible by block_size {block_size}')
 	
 	# decompose into blocks
