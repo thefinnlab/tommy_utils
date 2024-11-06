@@ -91,6 +91,9 @@ def make_random_indices(n_items, n_perms, method='choice', max_random_seed=2**32
 			perm_idxs = prng.permutation(n_items)
 		elif method == 'choice':
 			perm_idxs = prng.choice(np.arange(n_items), replace=True)
+		elif method == 'swap':
+			n_swaps = prng.choice(n_items)
+			perm_idxs = prng.choice(n_items, n_swaps, replace=False)
 		else:
 			print ('Permutation methods are choice and permutation')
 			sys.exit(0)

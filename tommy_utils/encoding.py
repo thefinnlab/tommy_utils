@@ -316,6 +316,7 @@ def create_vision_features(image_info, model_name, batch_size=8):
 		if model_name == 'clip':
 			inputs = tokenizer(images=batch, return_tensors='pt')
 			vision_embeddings = model.get_image_features(**inputs).detach()
+			vision_embeddings = vision_embeddings / vision_embeddings.norm(p=2, dim=-1, keepdim=True)
 		else:
 			batch = torch.stack([transform(x) for x in batch])
 			model_output = tl.log_forward_pass(model, batch, layers_to_save=model_layers)

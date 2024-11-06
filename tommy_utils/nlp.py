@@ -456,8 +456,10 @@ def get_word_vector_metrics(word_model, predicted_words, ground_truth_word, meth
 
 		if method == 'max':
 			gt_pred_similarity = np.nanmax(gt_pred_similarity)
-		else:
+		elif method == 'mean':
 			gt_pred_similarity = np.nanmean(gt_pred_similarity)
+		else:
+			gt_pred_similarity = gt_pred_similarity
 
 		# calculate spread of predictions as average pairwise distances
 		if predicted_vectors.shape[0] != 1:
