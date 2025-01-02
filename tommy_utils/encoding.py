@@ -444,9 +444,9 @@ def generate_leave_one_run_out(n_samples, run_onsets, random_state=None, n_runs_
 		
 		yield train, val
 
-def load_banded_features(fns, feature_names):
+def create_banded_features(features, feature_names):
 	'''
-	Given a set of filenames create prerequisites
+	Given a set of arrays (featuers) create prerequisites
 	for banded ridge regression
 
 	Returns
@@ -454,7 +454,7 @@ def load_banded_features(fns, feature_names):
 		- list of names of each feature space and the index in 
 			the overall list of feature spaces
 	'''
-	features = [np.load(fn) for fn in fns]
+	# features = [np.load(fn) for fn in fns]
 	features_dim = [feature.shape[1] for feature in features]
 	
 	# create slices by cumulative sum of spaces
