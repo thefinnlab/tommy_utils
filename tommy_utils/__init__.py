@@ -10,7 +10,8 @@ from . import (
 	fmriprep, 
 	nlp, 
 	plotting,
-	statistics
+	statistics,
+	misc
 )
 
 __version__ = '0.0.1'
@@ -23,5 +24,6 @@ __all__ = [
 	'fmriprep',
 	'nlp',
 	'plotting',
-	'statistics'
+	'statistics',
+	'misc'
 ]
