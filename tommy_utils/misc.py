@@ -5,10 +5,11 @@ from typing import List, Optional, Tuple
 ###### Function to generate matched encoding arrays ######
 ##########################################################
 
-
 def unify_arrays(string_lists: List[List[str]], 
                  array_lists: List[List[np.ndarray]], 
-                 check_axis: Optional[int] = None) -> Tuple[List[str], List[List[np.ndarray]]]:
+                 check_axis: Optional[int] = None,
+                 debug: bool = False,
+                 list_names: Optional[List[str]] = None) -> Tuple[List[str], List[List[np.ndarray]]]:
     """
     Creates unified arrays with consistent ordering, filling in zeros for missing arrays.
     
@@ -16,6 +17,8 @@ def unify_arrays(string_lists: List[List[str]],
         string_lists: Lists of layer names.
         array_lists: Lists of arrays corresponding to the layer names.
         check_axis: Optional axis to check for size consistency.
+        debug: If True, prints debugging information about added arrays.
+        list_names: Optional list of names for each input list (e.g., ["List 1", "List 2"]).
     
     Returns:
         Tuple containing:
@@ -25,6 +28,14 @@ def unify_arrays(string_lists: List[List[str]],
     Raises:
         ValueError: If non-substituted arrays do not match their original shapes.
     """
+    # Validate list_names
+    if list_names is not None and len(list_names) != len(string_lists):
+        raise ValueError("Length of list_names must match the number of input lists.")
+    
+    # Default list names if not provided
+    if list_names is None:
+        list_names = [f"List {i+1}" for i in range(len(string_lists))]
+    
     # Step 1: Get unique layer names in sorted order
     unified_layers = get_unified_layers(string_lists)
     
@@ -32,7 +43,7 @@ def unify_arrays(string_lists: List[List[str]],
     sizes = get_layer_sizes(string_lists, array_lists, unified_layers)
     
     # Step 3: Create a consistent set of arrays for each list
-    result = create_unified_arrays(string_lists, array_lists, unified_layers, sizes, check_axis)
+    result = create_unified_arrays(string_lists, array_lists, unified_layers, sizes, check_axis, debug, list_names)
     
     # Step 4: Verify that non-substituted arrays match their original shapes
     verify_non_substituted_arrays(string_lists, array_lists, result, unified_layers)
@@ -61,10 +72,15 @@ def create_unified_arrays(string_lists: List[List[str]],
                           array_lists: List[List[np.ndarray]], 
                           unified_layers: List[str], 
                           sizes: dict, 
-                          check_axis: Optional[int]) -> List[List[np.ndarray]]:
+                          check_axis: Optional[int],
+                          debug: bool,
+                          list_names: List[str]) -> List[List[np.ndarray]]:
     """Creates unified arrays for each list, filling in zeros for missing layers."""
     result = []
-    for layers, arrays in zip(string_lists, array_lists):
+    for i, (layers, arrays) in enumerate(zip(string_lists, array_lists)):
+        if debug:
+            print(f"\nProcessing {list_names[i]}:")
+        
         # Map existing arrays by layer name
         current_arrays = dict(zip(layers, arrays))
         
@@ -77,11 +93,16 @@ def create_unified_arrays(string_lists: List[List[str]],
                 if check_axis is not None and arr.shape[check_axis] != sizes[layer][check_axis]:
                     raise ValueError(f"Size mismatch at axis {check_axis} for {layer}")
                 new_arrays.append(arr)
+                if debug:
+                    print(f"  Retained array for {layer}: shape {arr.shape}")
             else:
                 # Create a zero-filled array with the same shape as the reference, but update axis 0
                 zero_shape = list(sizes[layer])
                 zero_shape[0] = arrays[0].shape[0]  # Match axis 0 size with the current list
-                new_arrays.append(np.zeros(zero_shape))
+                zero_array = np.zeros(zero_shape)
+                new_arrays.append(zero_array)
+                if debug:
+                    print(f"  Added zero-filled array for {layer}: shape {zero_array.shape}")
         
         result.append(new_arrays)
     return result
