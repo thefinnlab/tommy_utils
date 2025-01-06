@@ -267,23 +267,26 @@ def get_layer_tensors(model_output, flatten=True):
 		layer_tensors.append(arr)
 	return layer_tensors
 
-def chunk_video_clips(video_clips, batch_size):
-	'''
-	Helper function to gather and transform a videoclips object
-	'''
-	idxs = (i for i in range(video_clips.num_clips()))
-	while True:
-		sl = list(itertools.islice(idxs, batch_size))
-		if not sl:
-			break
+def chunk_video_clips(decoder, batch_size, trim=None):
+    '''
+    Helper function to gather and transform a videoclips object
+    '''
 
-		# video clips returns video, audio, info, video_idx
-		# we need to roll the video to have channels first
-		# then transform and stack
-		frames = [torch.moveaxis(video_clips.get_clip(i)[0], -1, 0).squeeze() for i in sl]
-		yield torch.stack(frames)
+    if trim:
+        idxs = (i for i in range(start_index, end_index))
+    else:
+        idxs = (i for i in range(len(decoder)))
 
-def create_vision_features(image_info, model_name, batch_size=8):
+    while True:
+        sl = list(itertools.islice(idxs, batch_size))
+        if not sl:
+            break
+
+        # decoder already has information in the right place
+        frames = [decoder[i] for i in sl]
+        yield torch.stack(frames)
+
+def create_vision_features(images, model_name, batch_size=8):
 	'''
 	given a set of frames and the meta 
 	'''
@@ -294,7 +297,7 @@ def create_vision_features(image_info, model_name, batch_size=8):
 		model = load_torchvision_model(model_name)
 		model_layers = VISION_MODELS_DICT[model_name]
 
-	times, images = image_info
+	# times, images = image_info
 	
 	transform = transforms.Compose([
 		transforms.ToPILImage(),
@@ -344,9 +347,7 @@ def load_torchaudio_model(model_name):
 	model = bundle.get_model()
 	return bundle, model
 
-def create_spectral_features(audio, sr, n_fft = 1024, hop_length=512, n_mels=128):
-	
-	times = np.linspace(0, audio.shape[-1]/sr, sr)
+def create_spectral_features(audio, sr, n_fft = 2048, hop_length = 512, n_mels=128):
 	
 	mel_spectrogram = torchaudio.transforms.MelSpectrogram(
 		sample_rate=sr,
@@ -361,15 +362,12 @@ def create_spectral_features(audio, sr, n_fft = 1024, hop_length=512, n_mels=128
 	)
 
 	melspec = mel_spectrogram(audio)
+
+	# Amount of time in the track is audio / sampling rate
+	# Melspectrogram is a number of smoothed samples (evenly distributed in time)
+	times = np.linspace(0, audio.shape[-1]/sr, melspec.shape[-1])
 	
-	padding = (sr - melspec[0].shape[-1]) / 2
-	left_pad = np.ceil(padding).astype(int)
-	right_pad = np.floor(padding).astype(int)
-
-	# here, pad = (padding_left, padding_right, padding_top, padding_bottom)
-	source_pad = F.pad(melspec[0], pad=(left_pad, right_pad,  0, 0)).T
-
-	return times, source_pad
+	return times, melspec
 
 ##################################
 ##### MODEL SETUP FUNCTIONS ######
