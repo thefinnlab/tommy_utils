@@ -296,8 +296,9 @@ def create_vision_features(images, model_name, batch_size=8):
 	else:
 		model = load_torchvision_model(model_name)
 		model_layers = VISION_MODELS_DICT[model_name]
-
-	# times, images = image_info
+	
+	video_fps = int(images.metadata.average_fps)
+	times = np.arange(0, n_frames / video_fps, 1/video_fps)
 	
 	transform = transforms.Compose([
 		transforms.ToPILImage(),
