@@ -273,7 +273,7 @@ def chunk_video_clips(decoder, batch_size, trim=None):
     '''
 
     if trim:
-        idxs = (i for i in range(start_index, end_index))
+        idxs = (i for i in range(trim[0], trim[1]))
     else:
         idxs = (i for i in range(len(decoder)))
 
@@ -296,7 +296,7 @@ def create_vision_features(images, model_name, batch_size=8):
 	else:
 		model = load_torchvision_model(model_name)
 		model_layers = VISION_MODELS_DICT[model_name]
-	
+
 	video_fps = int(images.metadata.average_fps)
 	times = np.arange(0, n_frames / video_fps, 1/video_fps)
 	
