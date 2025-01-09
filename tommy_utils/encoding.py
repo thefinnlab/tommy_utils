@@ -365,7 +365,7 @@ def create_spectral_features(audio, sr, n_fft = 2048, hop_length = 512, n_mels=1
 		mel_scale="htk",
 	)
 
-	melspec = mel_spectrogram(audio)
+	melspec = mel_spectrogram(audio).squeeze()
 
 	# Amount of time in the track is audio / sampling rate
 	# Melspectrogram is a number of smoothed samples (evenly distributed in time)
