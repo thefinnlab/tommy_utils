@@ -298,6 +298,7 @@ def create_vision_features(images, model_name, batch_size=8):
 		model_layers = VISION_MODELS_DICT[model_name]
 
 	video_fps = int(images.metadata.average_fps)
+	n_frames = len(images)
 	times = np.arange(0, n_frames / video_fps, 1/video_fps)
 	
 	transform = transforms.Compose([
