@@ -77,6 +77,8 @@ def get_modality_features(modality):
 		items = ['audio', 'language']
 	elif modality == 'text':
 		items = ['language']
+	elif modality == 'visual':
+		items = ['visual']
 	
 	modality_features = []
 	
