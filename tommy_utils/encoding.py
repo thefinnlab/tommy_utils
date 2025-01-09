@@ -365,13 +365,15 @@ def create_spectral_features(audio, sr, n_fft = 2048, hop_length = 512, n_mels=1
 		mel_scale="htk",
 	)
 
+	# Returns a features x samples matrix
 	melspec = mel_spectrogram(audio).squeeze()
 
 	# Amount of time in the track is audio / sampling rate
 	# Melspectrogram is a number of smoothed samples (evenly distributed in time)
 	times = np.linspace(0, audio.shape[-1]/sr, melspec.shape[-1])
 	
-	return times, melspec
+	# Transpose the spectrogram to put timepoints as the first dimension
+	return times, melspec.T
 
 ##################################
 ##### MODEL SETUP FUNCTIONS ######
