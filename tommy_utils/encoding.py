@@ -482,6 +482,9 @@ def get_concatenated_data(data, indices):
 		data_split = np.concatenate(itemgetter(*indices)(data), axis=0)
 	else:
 		data_split = np.stack(itemgetter(*indices)(data), axis=0)
+
+	data_split = np.nan_to_num(data_split)
+	
 	return data_split
 
 def get_train_test_splits(x, y, train_indices, test_indices, precision='float32', group_level=False):
@@ -656,8 +659,6 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 
 			pipeline = create_banded_model(mkr_model, delays=delays, feature_space_infos=feature_space_infos, 
 				kernel="linear", n_jobs=n_jobs, force_cpu=force_cpu)
-
-
 	else:       
 		solver_params=dict(n_targets_batch=N_TARGETS_BATCH, n_alphas_batch=N_ALPHAS_BATCH, 
 						   n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
