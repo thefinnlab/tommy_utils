@@ -483,8 +483,12 @@ def get_concatenated_data(data, indices):
 	else:
 		data_split = np.stack(itemgetter(*indices)(data), axis=0)
 
+	# Convert nan to num
 	data_split = np.nan_to_num(data_split)
-	
+
+	# Convert inf to num
+	data_split[np.isinf(data_split)] = 0
+
 	return data_split
 
 def get_train_test_splits(x, y, train_indices, test_indices, precision='float32', group_level=False):
