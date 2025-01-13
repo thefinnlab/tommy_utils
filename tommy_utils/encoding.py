@@ -476,12 +476,12 @@ def create_banded_features(features, feature_names):
 
 	return features, feature_space_info
 
-def get_concatenated_data(data, indices):
+def get_concatenated_data(data, indices, precision='float32'):
 	
 	if len(indices) > 1:
-		data_split = np.concatenate(itemgetter(*indices)(data), axis=0)
+		data_split = np.concatenate(itemgetter(*indices)(data), axis=0).astype(precision)
 	else:
-		data_split = np.stack(itemgetter(*indices)(data), axis=0)
+		data_split = np.stack(itemgetter(*indices)(data), axis=0).astype(precision)
 
 	# Convert nan to num
 	data_split = np.nan_to_num(data_split)
@@ -496,15 +496,15 @@ def get_train_test_splits(x, y, train_indices, test_indices, precision='float32'
 	# Get train data
 	if group_level:
 		assert (len(x) == 1)
-		X_train = get_concatenated_data(x, [0]).astype(precision)
-		X_test = get_concatenated_data(x, [0]).astype(precision)
+		X_train = get_concatenated_data(x, [0], precision)
+		X_test = get_concatenated_data(x, [0], precision)
 	else:
-		X_train = get_concatenated_data(x, train_indices).astype(precision)
-		X_test = get_concatenated_data(x, test_indices).astype(precision)
+		X_train = get_concatenated_data(x, train_indices, precision)
+		X_test = get_concatenated_data(x, test_indices, precision)
 
 	# Get test data
-	Y_train = get_concatenated_data(y, train_indices).astype(precision)
-	Y_test = get_concatenated_data(y, test_indices).astype(precision)
+	Y_train = get_concatenated_data(y, train_indices, precision)
+	Y_test = get_concatenated_data(y, test_indices, precision)
 	
 	return X_train, Y_train, X_test, Y_test
 
