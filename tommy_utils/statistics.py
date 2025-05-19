@@ -6,6 +6,10 @@ from joblib import Parallel, delayed
 
 def log_odds(x):
 	return np.log((x/ (1-x)))
+
+def ztransform_mean(dss):
+    dss = np.stack(dss)
+    return np.tanh(np.mean([np.arctanh(ds) for ds in dss], axis=0))
 	
 ############################
 #### BRAINIAK FUNCTIONS ####
