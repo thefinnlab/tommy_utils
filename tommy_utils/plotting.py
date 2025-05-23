@@ -1,6 +1,9 @@
 from matplotlib import pyplot as plt
 from matplotlib import cm
 from matplotlib.colors import TwoSlopeNorm, ListedColormap
+
+from matplotlib.patches import PathPatch
+
 from matplotlib import ticker
 from mpl_toolkits.axes_grid1 import ImageGrid
 import seaborn as sns
