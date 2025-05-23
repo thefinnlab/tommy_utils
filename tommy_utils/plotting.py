@@ -73,17 +73,18 @@ def chunkwise(t, size=2):
 	it = iter(t)
 	return zip(*[it]*size)
 
-def scatter_boxplot(df, x, y, group=None, palette='RdBu_r'):
+def scatter_boxplot(df, x, y, group=None, palette='RdBu_r', ax=None, order=None):
 	if not palette:
 		palette = sns.cubehelix_palette(start=0.5, rot=-.5, dark=0.5, light=0.9)[::-1]
 		
-	fig, ax = plt.subplots()
+	if ax is None:
+		fig, ax = plt.subplots()
 
 	sns.boxplot(x=x, y=y, hue=group, data=df, saturation=1, showfliers=False,
-			width=0.75, linewidth=2, palette=palette, boxprops={'alpha': 0.6}, ax=ax, zorder=10)
+			width=0.75, linewidth=2, palette=palette, boxprops={'alpha': 0.6}, ax=ax, zorder=10, order=order)
 
 	sns.stripplot(x=x, y=y, hue=group, data=df,
-					marker='o', color='0.9', alpha=0.4, edgecolor='0.1', linewidth=0.15, dodge=True, palette=palette, ax=ax)
+					marker='o', color='0.9', alpha=0.4, edgecolor='0.1', linewidth=0.15, dodge=True, palette=palette, ax=ax, order=order)
 	
 	if group is not None:
 		ax.get_legend().remove()
