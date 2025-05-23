@@ -73,28 +73,56 @@ def chunkwise(t, size=2):
 	it = iter(t)
 	return zip(*[it]*size)
 
-def scatter_boxplot(df, x, y, group=None, palette='RdBu_r', ax=None, order=None):
+def scatter_boxplot(df, x, y, group=None, palette='RdBu_r', order=None, ax=None, use_legend=False):
+	n_items = len(np.unique(df[x]))
+	n_groups = len(np.unique(df[group]))
+	hue_order = np.unique(df[group])    
+	
 	if not palette:
 		palette = sns.cubehelix_palette(start=0.5, rot=-.5, dark=0.5, light=0.9)[::-1]
-		
+
 	if ax is None:
 		fig, ax = plt.subplots()
+	
+	sns.boxplot(x=x, y=y, hue=group, data=df, saturation=1, showfliers=False, order=order, hue_order=hue_order,
+			width=0.8, linewidth=2, palette=palette, ax=ax, 
+				medianprops={'color': 'black'}, whiskerprops={'color': 'black'}, capprops={'visible': False})
+	
+	box_colors = [c for i in range(n_groups) for c in colors]
+	box_patches = [p for p in ax.patches if isinstance(p, PathPatch)]
+	
+	for patch, color in zip(box_patches, box_colors):
+		patch.set_facecolor(color)
+		patch.set_edgecolor('black')  # Set the edge color to black
 
-	sns.boxplot(x=x, y=y, hue=group, data=df, saturation=1, showfliers=False,
-			width=0.75, linewidth=2, palette=palette, boxprops={'alpha': 0.6}, ax=ax, zorder=10, order=order)
+	# Add hatches to the second box in each pair
+	hatches = ['', '///']    
+	
+	for i, patch in enumerate(box_patches):
+		if i >= n_items:
+			patch.set_hatch(hatches[1])
+	
+	sns.stripplot(x=x, y=y, hue=group, data=df, marker='o', color='0.9', alpha=0.4, 
+				  edgecolor='0.1', linewidth=0.15, dodge=True, palette=palette, ax=ax,
+				  zorder=10)
 
-	sns.stripplot(x=x, y=y, hue=group, data=df,
-					marker='o', color='0.9', alpha=0.4, edgecolor='0.1', linewidth=0.15, dodge=True, palette=palette, ax=ax, order=order)
+	dot_colors = sum([[c]*2 for c in box_colors], [])
+	
+	for collection, color in zip(ax.collections, dot_colors):
+		collection.set_facecolor(color)
 	
 	if group is not None:
 		ax.get_legend().remove()
 		
 		for ax1, ax2 in chunkwise(ax.collections, size=2):
 			for (x0, y0), (x1, y1) in zip(ax1.get_offsets(), ax2.get_offsets()):
-				ax.plot([x0, x1], [y0, y1], color='black', alpha=0.075, linewidth=0.5)
+				ax.plot([x0, x1], [y0, y1], color='black', alpha=0.15, linewidth=0.5)
 	
 		handles, labels = ax.get_legend_handles_labels()
 		ax.legend(handles[:2], labels[:2])
+
+	if not use_legend:
+		plt.legend([],[], frameon=False)
 	# Hide the right and top spines
 	ax.spines['right'].set_visible(False)
 	ax.spines['top'].set_visible(False)
