@@ -1,18 +1,25 @@
 from matplotlib import pyplot as plt
-from matplotlib import cm
-from matplotlib.colors import TwoSlopeNorm, ListedColormap
-from matplotlib import ticker
-from mpl_toolkits.axes_grid1 import ImageGrid
+from matplotlib import cm, colors
 import seaborn as sns
 import nibabel as nib
 from nilearn import plotting, image, glm
+
 import numpy as np
+from matplotlib import cm
+from matplotlib.colors import TwoSlopeNorm
+from matplotlib import ticker
+
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import ImageGrid
+
 import sys
 
+# sys.path.append('/dartfs/rc/lab/F/FinnLab/tommy/dark_matter/code/utils/surfplot/')
 from surfplot import Plot
 from neuromaps.transforms import mni152_to_fslr, mni152_to_fsaverage, mni152_to_civet, _estimate_density, fsaverage_to_fsaverage
 from neuromaps.datasets import fetch_fslr, fetch_fsaverage, fetch_civet
 from collections import defaultdict
+from matplotlib.colors import ListedColormap
 # import umap
 
 def draw_umap(data, colors, n_neighbors=15, min_dist=0.1, random_state=42, n_components=2, metric='euclidean', title='', s=10, cmap='jet'):
@@ -81,7 +88,7 @@ def scatter_boxplot(df, x, y, group=None, palette='RdBu_r', order=None, ax=None,
 			width=0.8, linewidth=2, palette=palette, ax=ax, 
 				medianprops={'color': 'black'}, whiskerprops={'color': 'black'}, capprops={'visible': False})
 	
-	box_colors = [c for i in range(n_groups) for c in colors]
+	box_colors = [c for i in range(n_groups) for c in palette]
 	box_patches = [p for p in ax.patches if isinstance(p, PathPatch)]
 	
 	for patch, color in zip(box_patches, box_colors):
@@ -172,7 +179,7 @@ def plot_brain_volume(ds, vmax, title, cmap, out_fn=None):
 		vmin = vmax
 
 	# create the colorbar for the image
-	norm = TwoSlopeNorm(vmin=-vmax, vmax=vmax)
+	norm = colors.Normalize(vmin=-vmax, vmax=vmax)
 	threshold_cmap = threshold_cbar(cmap, norm, vmin)
 
 	fig, axes = plt.subplots(2,1)
@@ -229,7 +236,7 @@ def threshold_cbar(cmap, norm, threshold):
 	for i in range(istart, istop):
 		cmaplist[i] = (0.5, 0.5, 0.5, 1.)
 		
-	thresholded_cmap = ListedColormap.from_list(
+	thresholded_cmap = colors.LinearSegmentedColormap.from_list(
 		'Custom cmap', cmaplist, cmap.N)
 	
 	return thresholded_cmap
