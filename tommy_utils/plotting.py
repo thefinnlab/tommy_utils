@@ -377,15 +377,15 @@ def vol_to_surf(ds, surf_type='fsaverage', map_type='inflated', target_density='
 	if surf_type == 'fsaverage':
 		assert (target_density in ['3k', '10k', '41k', '164k'])
 		surfaces = fetch_fsaverage(density=target_density)
-		data_lh, data_rh = mni152_to_fsaverage(ds, method=method)
+		data_lh, data_rh = mni152_to_fsaverage(ds, fsavg_density=target_density, method=method)
 	elif surf_type == 'fslr':
 		assert (target_density in ['4k', '8k', '32k', '164k'])
 		surfaces = fetch_fslr(density=target_density)
-		data_lh, data_rh = mni152_to_fslr(ds, method=method)
+		data_lh, data_rh = mni152_to_fslr(ds, fslr_density=target_density, method=method)
 	elif surf_type == 'civet':
 		assert (target_density in ['41k', '164k'])
 		surfaces = fetch_civet(density=target_density)
-		data_lh, data_rh = mni152_to_civet(ds, method=method)
+		data_lh, data_rh = mni152_to_civet(ds, civet_density=target_density, method=method)
 		
 	surfs = surfaces[map_type]
 	data = {'left': data_lh, 'right': data_rh}
