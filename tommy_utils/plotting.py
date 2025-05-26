@@ -476,7 +476,6 @@ def plot_surf_data(surfs, layers_info, surf_type='fslr', views=['lateral', 'medi
 		plt.close('all')
 	
 	return fig, p
-
 def scatter_barplot(df, x, y, group=None, palette='RdBu_r', ax=None, order=None, ci=95, use_legend=False):
     """Create a bar plot with individual data points.
     
@@ -524,32 +523,35 @@ def scatter_barplot(df, x, y, group=None, palette='RdBu_r', ax=None, order=None,
     # Plot bars with error bars
     bar_plot = sns.barplot(x=x, y=y, hue=group, data=df, palette=palette, 
                           order=order, hue_order=hue_order, ci=ci, ax=ax, 
-                          saturation=1, linewidth=2, zorder=0)
+                          edgecolor='black', saturation=1, linewidth=2, zorder=0)
     
     # Set colors and hatches
-    box_colors = [c for i in range(n_groups) for c in palette]
-    
-    # Get all patches and set their colors
-    for i, patch in enumerate(ax.patches):
-        color_idx = i % len(box_colors)
-        patch.set_facecolor(box_colors[color_idx])
-        patch.set_edgecolor('black')
+    if group is not None:
+        box_colors = [c for i in range(n_groups) for c in palette]
+        
+        # Get all patches and set their colors
+        for i, patch in enumerate(ax.patches):
+            color_idx = i % len(box_colors)
+            patch.set_facecolor(box_colors[color_idx])
+            patch.set_edgecolor('black')
 
-    # Add hatches to the second bar in each pair
-    hatches = ['', '///']    
-    for i, patch in enumerate(ax.patches):
-        if i >= n_items:
-            patch.set_hatch(hatches[1])
+        # Add hatches to the second bar in each pair
+        hatches = ['', '///']    
+        for i, patch in enumerate(ax.patches):
+            if i >= n_items:
+                patch.set_hatch(hatches[1])
 
     # Plot individual points
+    dodge = True if group is not None else False
     sns.stripplot(x=x, y=y, hue=group, data=df,
                   marker='o', color='0.9', alpha=0.4, edgecolor='0.1', 
-                  linewidth=0.15, dodge=True, palette=palette, ax=ax, order=order, zorder=11)
+                  linewidth=0.15, dodge=dodge, palette=palette, ax=ax, order=order, zorder=11)
 
     # Set dot colors
-    dot_colors = sum([[c]*2 for c in box_colors], [])
-    for collection, color in zip(ax.collections, dot_colors):
-        collection.set_facecolor(color)
+    if group is not None:
+        dot_colors = sum([[c]*2 for c in box_colors], [])
+        for collection, color in zip(ax.collections, dot_colors):
+            collection.set_facecolor(color)
     
     if group is not None:
         ax.get_legend().remove()
