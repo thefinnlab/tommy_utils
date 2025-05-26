@@ -476,3 +476,97 @@ def plot_surf_data(surfs, layers_info, surf_type='fslr', views=['lateral', 'medi
 		plt.close('all')
 	
 	return fig, p
+
+def scatter_barplot(df, x, y, group=None, palette='RdBu_r', ax=None, order=None, ci=95, use_legend=False):
+    """Create a bar plot with individual data points.
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input data
+    x : str
+        Column name for x-axis categories
+    y : str
+        Column name for y-axis values
+    group : str, optional
+        Column name for grouping
+    palette : str, default='RdBu_r'
+        Color palette for the plot
+    ax : matplotlib.axes.Axes, optional
+        Axes to plot on
+    order : list, optional
+        Order of categories on x-axis
+    ci : int, default=95
+        Confidence interval for error bars
+    use_legend : bool, default=False
+        Whether to show the legend
+        
+    Returns
+    -------
+    matplotlib.axes.Axes
+        The axes object with the plot
+    """
+    if group is not None:
+        hue_order = np.unique(df[group])
+        n_groups = len(hue_order)
+        n_items = len(np.unique(df[x]))
+    else:
+        hue_order = None
+        n_groups = 1
+        n_items = len(np.unique(df[x]))
+    
+    if not palette:
+        palette = sns.cubehelix_palette(start=0.5, rot=-.5, dark=0.5, light=0.9)[::-1]
+        
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    # Plot bars with error bars
+    bar_plot = sns.barplot(x=x, y=y, hue=group, data=df, palette=palette, 
+                          order=order, hue_order=hue_order, ci=ci, ax=ax, 
+                          saturation=1, linewidth=2, zorder=0)
+    
+    # Set colors and hatches
+    box_colors = [c for i in range(n_groups) for c in palette]
+    
+    # Get all patches and set their colors
+    for i, patch in enumerate(ax.patches):
+        color_idx = i % len(box_colors)
+        patch.set_facecolor(box_colors[color_idx])
+        patch.set_edgecolor('black')
+
+    # Add hatches to the second bar in each pair
+    hatches = ['', '///']    
+    for i, patch in enumerate(ax.patches):
+        if i >= n_items:
+            patch.set_hatch(hatches[1])
+
+    # Plot individual points
+    sns.stripplot(x=x, y=y, hue=group, data=df,
+                  marker='o', color='0.9', alpha=0.4, edgecolor='0.1', 
+                  linewidth=0.15, dodge=True, palette=palette, ax=ax, order=order, zorder=11)
+
+    # Set dot colors
+    dot_colors = sum([[c]*2 for c in box_colors], [])
+    for collection, color in zip(ax.collections, dot_colors):
+        collection.set_facecolor(color)
+    
+    if group is not None:
+        ax.get_legend().remove()
+        
+        # Connect points between groups
+        for ax1, ax2 in chunkwise(ax.collections, size=2):
+            for (x0, y0), (x1, y1) in zip(ax1.get_offsets(), ax2.get_offsets()):
+                ax.plot([x0, x1], [y0, y1], color='black', alpha=0.15, linewidth=0.5, zorder=11)
+    
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles[:2], labels[:2])
+
+    if not use_legend:
+        plt.legend([],[], frameon=False)
+
+    # Hide the right and top spines
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    
+    return ax
