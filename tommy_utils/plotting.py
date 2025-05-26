@@ -476,7 +476,8 @@ def plot_surf_data(surfs, layers_info, surf_type='fslr', views=['lateral', 'medi
 		plt.close('all')
 	
 	return fig, p
-def scatter_barplot(df, x, y, group=None, palette='RdBu_r', ax=None, order=None, ci=95, use_legend=False):
+
+def scatter_barplot(df, x, y, group=None, palette='RdBu_r', ax=None, order=None, ci=95, use_legend=False, reverse_hatches=False):
     """Create a bar plot with individual data points.
     
     Parameters
@@ -523,7 +524,7 @@ def scatter_barplot(df, x, y, group=None, palette='RdBu_r', ax=None, order=None,
     # Plot bars with error bars
     bar_plot = sns.barplot(x=x, y=y, hue=group, data=df, palette=palette, 
                           order=order, hue_order=hue_order, ci=ci, ax=ax, 
-                          edgecolor='black', saturation=1, linewidth=2, zorder=0)
+                          edgecolor='black', saturation=1, linewidth=2, zorder=2)
     
     # Set colors and hatches
     if group is not None:
@@ -539,13 +540,33 @@ def scatter_barplot(df, x, y, group=None, palette='RdBu_r', ax=None, order=None,
         hatches = ['', '///']    
         for i, patch in enumerate(ax.patches):
             if i >= n_items:
-                patch.set_hatch(hatches[1])
+                color_idx = (i - n_items) % len(box_colors)
+                
+                if reverse_hatches:
+                    # Create a new patch with the same dimensions but only hatch
+                    x_pos, y_pos = patch.get_x(), patch.get_y()
+                    width, height = patch.get_width(), patch.get_height()
+                    
+                    hatch_patch = plt.Rectangle((x_pos, y_pos), width, height, 
+                                            facecolor='none', 
+                                            hatch=hatches[1],
+                                            edgecolor=box_colors[color_idx],
+                                            linewidth=0,
+                                            zorder=1)  # Behind bars but above background
+                    ax.add_patch(hatch_patch)
+                    
+                    # Keep the original patch visible with white/transparent face
+                    patch.set_facecolor('none')
+                    patch.set_alpha(1)  # Semi-transparent instead of invisible
+                else:
+                    patch.set_hatch(hatches[1])
 
-    # Plot individual points
+    # Plot individual points - increase zorder to ensure they're visible
     dodge = True if group is not None else False
     sns.stripplot(x=x, y=y, hue=group, data=df,
-                  marker='o', color='0.9', alpha=0.4, edgecolor='0.1', 
-                  linewidth=0.15, dodge=dodge, palette=palette, ax=ax, order=order, zorder=11)
+                  marker='o', color='0.9', alpha=0.6, edgecolor='0.1', 
+                  linewidth=0.15, dodge=dodge, palette=palette, ax=ax, 
+                  order=order, zorder=15)  # Higher zorder
 
     # Set dot colors
     if group is not None:
@@ -556,10 +577,11 @@ def scatter_barplot(df, x, y, group=None, palette='RdBu_r', ax=None, order=None,
     if group is not None:
         ax.get_legend().remove()
         
-        # Connect points between groups
+        # Connect points between groups - increase zorder for visibility
         for ax1, ax2 in chunkwise(ax.collections, size=2):
             for (x0, y0), (x1, y1) in zip(ax1.get_offsets(), ax2.get_offsets()):
-                ax.plot([x0, x1], [y0, y1], color='black', alpha=0.15, linewidth=0.5, zorder=11)
+                ax.plot([x0, x1], [y0, y1], color='black', alpha=0.3, 
+                       linewidth=0.8, zorder=14)  # High zorder for visibility
     
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles[:2], labels[:2])
