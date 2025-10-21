@@ -25,7 +25,7 @@ dependencies:
   - pip
   - statsmodels
   - huggingface_hub
-  - transformers=4.35.0
+  - transformers>=4.51.0 #=4.35.0
   - scikit-learn
   - scipy
   - matplotlib
@@ -42,7 +42,7 @@ dependencies:
     - mergedeep
     - himalaya
     - pydub
-    - tensorflow
+    # - tensorflow
     - natsort
     - sentencepiece
     - transformers_stream_generator

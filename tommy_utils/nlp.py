@@ -32,6 +32,11 @@ CLM_MODELS_DICT = {
 	'gpt-neo-x': 'EleutherAI/gpt-neo-1.3B',
 	'llama2': 'meta-llama/Llama-2-7b-hf',
 	'mistral': 'mistralai/Mistral-7B-v0.1',
+	'qwen3-8B': 'Qwen/Qwen3-8B',
+	'qwen3-32B': 'Qwen/Qwen3-32B',
+	'llama3.1-8B': 'meta-llama/Llama-3.1-8B',
+	'llama3.1-70B': 'meta-llama/Llama-3.1-70B',
+	'gemma3-1b-pt': 'google/gemma-3-1b-pt'
 }
 
 MLM_MODELS_DICT = {
@@ -171,12 +176,12 @@ def load_clm_model(model_name, cache_dir=None):
 	if model_name in ['electra', 'xlm-prophetnet']:
 		config = AutoConfig.from_pretrained(MLM_MODELS_DICT[model_name])
 		config.is_decoder = True
-		model = AutoModelForCausalLM.from_pretrained(MLM_MODELS_DICT[model_name], config=config)
+		model = AutoModelForCausalLM.from_pretrained(MLM_MODELS_DICT[model_name], config=config, use_safetensors=True)
 	else:
 		if model_name == 'roberta':
-			model = AutoModelForCausalLM.from_pretrained(MLM_MODELS_DICT[model_name])
+			model = AutoModelForCausalLM.from_pretrained(MLM_MODELS_DICT[model_name], use_safetensors=True)
 		else:
-			model = AutoModelForCausalLM.from_pretrained(CLM_MODELS_DICT[model_name])
+			model = AutoModelForCausalLM.from_pretrained(CLM_MODELS_DICT[model_name], use_safetensors=True)
 
 	model.eval()
 	
@@ -197,7 +202,7 @@ def load_mlm_model(model_name, cache_dir=None):
 
 	# Load model from HuggingFace Hub
 	tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
-	model = AutoModel.from_pretrained(model_name)
+	model = AutoModel.from_pretrained(model_name, use_safetensors=True)
 	
 	model.eval()
 
@@ -221,7 +226,7 @@ def load_multimodal_model(model_name, modality, cache_dir=None):
 		sys.exit(0)
 
 	# load clip 
-	model = AutoModel.from_pretrained(MULTIMODAL_MODELS_DICT[model_name])
+	model = AutoModel.from_pretrained(MULTIMODAL_MODELS_DICT[model_name], use_safetensors=True)
 	
 	if modality == 'vision':
 		tokenizer = AutoProcessor.from_pretrained(MULTIMODAL_MODELS_DICT[model_name])
@@ -233,27 +238,24 @@ def load_multimodal_model(model_name, modality, cache_dir=None):
 	return tokenizer, model
 
 def get_clm_predictions(inputs, model, tokenizer, out_fn=None):
-
 	if any(model_name in model.name_or_path for model_name in MLM_MODELS_DICT.keys()):
-		# append a mask token to the inputs
+		# append a mask token
 		inputs = [f'{ins} {tokenizer.mask_token}' for ins in inputs]
-		tokens = tokenizer(inputs, return_tensors="pt")
-		
+		tokens = tokenizer(inputs, return_tensors="pt").to(model.device)
 		with torch.no_grad():
 			logits = model(**tokens).logits[:, -2, :]
 	else:
-		tokens = tokenizer(inputs, return_tensors="pt")
-		
+		tokens = tokenizer(inputs, return_tensors="pt").to(model.device)
 		with torch.no_grad():
 			logits = model(**tokens).logits[:, -1, :]
-	
-	# get the probability of the logits
-	probs = F.softmax(logits, dim=-1)
 
-	# if we provide we save logits out
+	# convert to probs and detach
+	probs = F.softmax(logits, dim=-1).detach().cpu()
+
+	# save logits if requested
 	if out_fn:
-		torch.save(logits, out_fn)
-	
+		torch.save(logits.cpu(), out_fn)
+
 	return probs
 
 def get_segment_indices(n_words, window_size, bidirectional=False):
