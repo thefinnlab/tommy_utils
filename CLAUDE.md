@@ -31,59 +31,92 @@ pip install -e .
 
 ### Module Organization
 
+**Note:** The package has been refactored for better modularity. See `REFACTORING_SUMMARY.md` for details.
+
 The package is organized into domain-specific modules:
 
-1. **`encoding.py`** - Core encoding model infrastructure
+1. **`config/`** - Centralized configuration ⭐ NEW
+   - Model dictionaries (ENCODING_FEATURES, CLM_MODELS_DICT, etc.)
+   - Path utilities (get_data_dir(), get_phonemes_path(), etc.)
+
+2. **`encoding/`** - Core encoding model infrastructure ⭐ REFACTORED
+   - **`features/`** - Feature extraction subpackage
+     - `language.py` - Phoneme, word, and transformer features
+     - `vision.py` - CNN and CLIP vision features
+     - `audio.py` - Spectral and mel-spectrogram features
+   - **`pipeline.py`** - Model building with optimized helper functions
+   - **`crossval.py`** - Cross-validation strategies (leave-one-run-out)
+   - **`evaluation.py`** - Model metrics and scoring
+   - **`io.py`** - Save/load model parameters
+   - **`utils.py`** - Helper functions (Lanczos interpolation, data handling)
    - Ridge regression and kernel ridge regression pipelines using Himalaya
    - Custom group-level solvers for multi-subject modeling
-   - Feature extraction from vision models (AlexNet, CLIP, ResNet)
-   - Audio feature extraction (spectrograms, mel-spectrograms)
-   - NLP model integration (GPT-2, Word2Vec, phoneme features)
    - HRF delay modeling via the `Delayer` class
-   - Cross-validation strategies for neuroimaging (leave-one-run-out)
 
-2. **`nlp.py`** - Natural language processing utilities
+3. **`nlp.py`** - Natural language processing utilities
    - Loading and managing word embeddings (GloVe, Word2Vec, FastText)
    - Transformer model interfaces (GPT-2, BERT, RoBERTa, LLaMA, etc.)
    - Contextualized word embedding extraction
    - Word prediction and probability metrics
    - Semantic similarity calculations
 
-3. **`plotting.py`** - Visualization for neuroimaging and statistics
+4. **`plotting.py`** - Visualization for neuroimaging and statistics
    - Brain surface plotting using `surfplot` and `neuromaps`
    - Volume-to-surface transformations (MNI152 to fsaverage/fslr/civet)
    - Statistical plots (scatter-boxplots, scatter-barplots, KDE-boxplots)
    - Correlation matrices and brain map visualizations
    - Depth map creation for cortical surfaces
 
-4. **`statistics.py`** - Statistical testing for neuroimaging
+5. **`statistics.py`** - Statistical testing for neuroimaging
    - Permutation testing (block permutation, timeshift permutation)
    - P-value calculation from null distributions
    - Array-wise correlation (from BrainIAK)
    - Multiple comparison correction
 
-5. **`fmriprep.py`** - fMRIPrep confound extraction
+6. **`fmriprep.py`** - fMRIPrep confound extraction
    - CompCor component extraction (aCompCor, tCompCor)
    - Flexible confound selection from fMRIPrep outputs
 
-6. **`afni.py`** - AFNI regressor creation
+7. **`afni.py`** - AFNI regressor creation
    - Amplitude-modulated regressors
    - Duration-modulated regressors
 
-7. **`atlas.py`** - Brain atlas utilities
+8. **`atlas.py`** - Brain atlas utilities
    - Loading and combining brain atlases (Fedorenko, Glasser, visual ROIs)
    - Atlas manipulation (masking, parcellation, region extraction)
    - Converting data to parcels using atlas definitions
    - Handling overlapping regions with priority-based combination
 
-8. **`custom_solvers.py`** - Custom Himalaya solvers
+9. **`custom_solvers.py`** - Custom Himalaya solvers
    - Group-level banded ridge regression
    - Group-level multiple kernel ridge regression
 
-9. **`delayer.py`** - HRF delay modeling
+10. **`delayer.py`** - HRF delay modeling
    - Creates time-lagged features for encoding models
 
-10. **`misc.py`** - Miscellaneous utilities
+11. **`misc.py`** - Miscellaneous utilities
+
+## Refactoring Benefits
+
+### Lazy Loading
+The refactored `encoding` module uses lazy imports to dramatically improve import times:
+```python
+import tommy_utils  # Fast - doesn't load torch/transformers yet
+from tommy_utils.encoding.features import create_vision_features  # Loads torch only when called
+```
+
+### Helper Functions
+The `pipeline.py` module now uses helper functions with **kwargs to eliminate duplication:
+- `_create_base_solver_params()` - Creates solver parameter dictionaries
+- `_validate_group_level_shapes()` - Validates group-level modeling inputs
+- `_create_ridge_model()` - Unified model instantiation with flexible kwargs
+
+### Modular Structure
+Each component has a clear responsibility:
+- `features/` - Feature extraction only
+- `pipeline.py` - Model building only
+- `evaluation.py` - Metrics only
+- `io.py` - Serialization only
 
 ## Key Workflows
 

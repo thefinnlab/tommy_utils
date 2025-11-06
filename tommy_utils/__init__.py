@@ -1,32 +1,61 @@
 #!/usr/bin/env python
 """
-Utils that Tommy uses for projects
+Tommy's Neuroscience Utilities
+
+This package provides utilities for fMRI analysis and encoding model development.
+
+Major components:
+- config: Centralized configuration for models and paths
+- encoding: Feature extraction, modeling pipelines, and custom solvers
+- fmri: fMRI preprocessing (fMRIPrep, AFNI, atlases)
+- nlp: Natural language processing and transformers
+- visualization: Brain visualization and statistical plots
+- plotting: (Deprecated) Brain visualization and statistical plots - use visualization instead
+- stats: Statistical testing for neuroimaging
 """
 
+# Import refactored subpackages
+from . import config
+from . import encoding
+from . import fmri
+from . import nlp
+from . import visualization
+
+# Import other modules
 from . import (
-	afni,
-	atlas,
-	delayer,
-	encoding,
-	fmriprep,
-	nlp,
 	plotting,
-	statistics,
+	stats,
 	misc
 )
 
-__version__ = '0.0.1'
-__date__ = '2024-02-07'
+# Backward compatibility alias
+statistics = stats
+
+# Backward compatibility: expose submodules at top level
+from .fmri import afni, atlas, fmriprep
+from .encoding import delayer
+from .encoding import solvers as custom_solvers
+
+__version__ = '0.2.0'
+__date__ = '2025-01-06'
 __author__ = 'Tommy Botch'
 
 __all__ = [
+	# Refactored subpackages
+	'config',
+	'encoding',
+	'fmri',
+	'nlp',
+	'visualization',
+	# Other modules
+	'plotting',
+	'stats',
+	'misc',
+	# Backward compatibility
+	'statistics',  # alias for stats
 	'afni',
 	'atlas',
 	'delayer',
-	'encoding',
 	'fmriprep',
-	'nlp',
-	'plotting',
-	'statistics',
-	'misc'
+	'custom_solvers',
 ]

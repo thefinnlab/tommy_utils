@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//dartfs/rc/lab/F/FinnLab/tommy/dark_matter/code/utils/**)",
+      "Read(//dartfs/rc/lab/F/FinnLab/tommy/atlases/**)",
+      "Bash(tree:*)",
+      "Bash(python -c:*)",
+      "Bash(source ~/miniconda3/etc/profile.d/conda.sh)",
+      "Bash(conda activate:*)",
+      "Bash(conda info:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
