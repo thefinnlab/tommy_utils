@@ -1,3 +1,4 @@
+import matplotlib as mpl
 from matplotlib import pyplot as plt
 from matplotlib import cm
 from matplotlib.colors import TwoSlopeNorm, ListedColormap
@@ -17,6 +18,133 @@ from neuromaps.transforms import mni152_to_fslr, mni152_to_fsaverage, mni152_to_
 from neuromaps.datasets import fetch_fslr, fetch_fsaverage, fetch_civet
 from collections import defaultdict
 # import umap
+
+############################################
+############# FIGURE SETUP #################
+############################################
+
+# Set consistent Seaborn + Matplotlib figure style.
+def figure_style(
+    font_size=7,
+    scatter_size=10,
+    axes_color='black',
+    font='Liberation Sans',
+    fig_size=(4, 4),
+    **kwargs
+):
+    """
+    Set consistent Seaborn + Matplotlib figure style.
+
+    Parameters
+    ----------
+    font_size : int
+        Base font size for all text.
+    scatter_size : int or float
+        Default marker size for scatter plots.
+    axes_color : str
+        Color of all axes spines and ticks (default: black).
+    font : str
+        Font family to use (default: Helvetica).
+    fig_size : tuple
+        Default figure size (width, height) in inches.
+    **kwargs :
+        Additional rcParams for fine-tuning.
+    """
+
+    rc_defaults = {
+        "font.size": font_size,
+        "figure.figsize": fig_size,
+        "figure.titlesize": font_size,
+        "axes.titlesize": font_size,
+        "axes.labelsize": font_size,
+        "axes.linewidth": 0.5,
+        "axes.edgecolor": axes_color,
+        "axes.labelcolor": axes_color,
+        "xtick.color": axes_color,
+        "ytick.color": axes_color,
+        "lines.linewidth": 1,
+        "lines.markersize": scatter_size,
+        "xtick.labelsize": font_size,
+        "ytick.labelsize": font_size,
+        "savefig.transparent": True,
+        "legend.fontsize": font_size,
+        "legend.title_fontsize": font_size,
+        "legend.frameon": False,
+    }
+
+    # Allow user to override rc defaults
+    rc_defaults.update(kwargs)
+
+    # Apply consistent Seaborn + Matplotlib theme
+    sns.set_theme(style="ticks", context="paper", font=font, rc=rc_defaults)
+
+    # Ensure vector font embedding compatibility
+    mpl.rcParams['pdf.fonttype'] = 42
+    mpl.rcParams['ps.fonttype'] = 42
+    mpl.rcParams['backend'] = 'QtAgg'
+
+    # colors = {
+    #     'hit': sns.color_palette('Set2')[0],
+    #     'miss': sns.color_palette('Set2')[1],
+    # }
+
+    # return colors
+
+def combine_images(columns, images, row_names=None, column_names=None, title=None, legend=None, fig_size=(16, 4), pad=5, out_fn=None):
+		
+		rows = len(images) // columns
+		if len(images) % columns:
+				rows += 1
+		fig = plt.figure(1, figsize=fig_size, constrained_layout=True)
+		grid = ImageGrid(fig, 111,  # similar to subplot(111)
+								 nrows_ncols=(rows, columns),  # creates 2x2 grid of axes
+								 axes_pad=0.1,  # pad between axes in inch.
+								 )
+		
+		for ax, im in zip(grid, images):
+		# Iterating over the grid returns the Axes.
+				im = plt.imread(im)
+				ax.imshow(im)
+				ax.get_xaxis().set_ticks([])
+				ax.get_yaxis().set_ticks([])
+				plt.setp(ax.spines.values(), visible=False) 
+		
+		if row_names:
+				for ax, row in zip(np.array(grid.axes_row)[:,0], row_names): # np.array(grid.axes_row)[:,0]
+#             ax.set_title(row)
+						ax.annotate(row, xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
+												xycoords=ax.yaxis.label, textcoords='offset points',
+												ha='right', va='center', fontsize=fig_size[0])
+		if column_names:
+				for ax, col in zip(np.array(grid.axes_row)[0], column_names): # np.array(grid.axes_row)[0]
+						ax.annotate(col, xy=(0.5, 1), xytext=(0, pad),
+												xycoords='axes fraction', textcoords='offset points',
+												ha='center', va='baseline', fontsize=fig_size[0])
+		
+		# fig.tight_layout()
+
+		if legend:
+				fig.text(x=0.95, y=0.4, 
+								 s=legend, 
+								 fontsize=fig_size[0], 
+								 bbox=dict(facecolor='none', edgecolor='black', pad=5.0))
+		
+		if title:
+			if row_names == None:
+				row_names = [None]
+
+				#0.1375
+			fig.suptitle(title, x=0.5, y=0.5 + 0.1125 * len(row_names), fontsize=fig_size[0]+6)
+
+		if out_fn:
+				plt.savefig(out_fn, bbox_inches='tight')
+				plt.close('all')
+				
+		return fig
+
+############################################
+############ UMAP PLOTTING ################
+############################################
 
 def draw_umap(data, colors, n_neighbors=15, min_dist=0.1, random_state=42, n_components=2, metric='euclidean', title='', s=10, cmap='jet'):
 	fit = umap.UMAP(
@@ -63,6 +191,10 @@ def plot_colorbar(vmin, vmax, nticks=5, direction='horizontal', cmap='RdBu_r', o
 	
 	if out_fn:
 		plt.savefig(out_fn, bbox_inches='tight', transparent=True)
+
+############################################
+############ PAIRED PLOTTING ###############
+############################################
 
 # for "pairs" of any length
 def chunkwise(t, size=2):
@@ -163,6 +295,158 @@ def kde_boxplot(df, x, y, direction='horizontal', palette=None, alpha=0.5, cut=2
 	
 	return ax
 
+def scatter_barplot(df, x, y, group=None, palette='RdBu_r', ax=None, order=None, ci=95, use_legend=False, reverse_hatches=False, plot_points=True):
+	"""Create a bar plot with individual data points.
+	
+	Parameters
+	----------
+	df : pandas.DataFrame
+		Input data
+	x : str
+		Column name for x-axis categories
+	y : str
+		Column name for y-axis values
+	group : str, optional
+		Column name for grouping
+	palette : str, default='RdBu_r'
+		Color palette for the plot
+	ax : matplotlib.axes.Axes, optional
+		Axes to plot on
+	order : list, optional
+		Order of categories on x-axis
+	ci : int, default=95
+		Confidence interval for error bars
+	use_legend : bool, default=False
+		Whether to show the legend
+		
+	Returns
+	-------
+	matplotlib.axes.Axes
+		The axes object with the plot
+	"""
+	if group is not None:
+		hue_order = np.unique(df[group])
+		n_groups = len(hue_order)
+		n_items = len(np.unique(df[x]))
+	else:
+		hue_order = None
+		n_groups = 1
+		n_items = len(np.unique(df[x]))
+	
+	if not palette:
+		palette = sns.cubehelix_palette(start=0.5, rot=-.5, dark=0.5, light=0.9)[::-1]
+		
+	if ax is None:
+		fig, ax = plt.subplots()
+
+	# Plot bars with error bars - set errcolor and capsize
+	bar_plot = sns.barplot(x=x, y=y, hue=group, data=df, palette=palette, 
+						  order=order, hue_order=hue_order, ci=ci, ax=ax, 
+						  edgecolor='black', saturation=1, linewidth=1.5, zorder=2,
+						  errcolor='black', errwidth=1.5)  # Add error bar styling
+	
+	# Plot individual points FIRST (lower zorder)
+	if plot_points:
+		dodge = True if group is not None else False
+		sns.stripplot(x=x, y=y, hue=group, data=df,
+					marker='o', color='0.9', alpha=0.4, edgecolor='0.1', 
+					linewidth=0.3, dodge=dodge, palette=palette, ax=ax, 
+					order=order, zorder=3)  # Lower zorder than error bars
+		
+	# Get error bar lines and set them to higher zorder
+	# Error bars are Line2D objects in ax.lines
+	for line in ax.lines:
+		# Check if this is an error bar line (they're usually the vertical lines)
+		if line.get_linestyle() == '-':
+			line.set_color('black')
+			line.set_linewidth(1.5)
+			line.set_zorder(20)  # Put error bars on top
+	
+	# Set colors and hatches
+	if group is not None:
+		box_colors = [c for i in range(n_groups) for c in palette]
+		
+		# Get all patches and set their colors
+		for i, patch in enumerate(ax.patches):
+			color_idx = i % len(box_colors)
+			patch.set_facecolor(box_colors[color_idx])
+			patch.set_edgecolor('black')
+
+		# Add hatches to the second bar in each pair
+		hatches = ['', '///']    
+		for i, patch in enumerate(ax.patches):
+			if i >= n_items:
+				color_idx = (i - n_items) % len(box_colors)
+				
+				if reverse_hatches:
+					# Create a new patch with the same dimensions but only hatch
+					x_pos, y_pos = patch.get_x(), patch.get_y()
+					width, height = patch.get_width(), patch.get_height()
+					
+					hatch_patch = plt.Rectangle((x_pos, y_pos), width, height, 
+											facecolor='none', 
+											hatch=hatches[1],
+											edgecolor=box_colors[color_idx],
+											linewidth=0,
+											zorder=1)  # Behind bars but above background
+					ax.add_patch(hatch_patch)
+					
+					# Keep the original patch visible with white/transparent face
+					patch.set_facecolor('none')
+					patch.set_alpha(1)  # Semi-transparent instead of invisible
+				else:
+					patch.set_hatch(hatches[1])
+
+	# Set dot colors
+	if group is not None:
+		dot_colors = sum([[c]*2 for c in box_colors], [])
+		for collection, color in zip(ax.collections, dot_colors):
+			collection.set_facecolor(color)
+	
+	if group is not None:
+		legend = ax.get_legend()
+		if legend is not None:
+			legend.remove()
+		
+		# Connect points between groups
+		for ax1, ax2 in chunkwise(ax.collections, size=2):
+			for (x0, y0), (x1, y1) in zip(ax1.get_offsets(), ax2.get_offsets()):
+				ax.plot([x0, x1], [y0, y1], color='black', alpha=0.1, 
+					   linewidth=0.8, zorder=4)  # Below error bars
+	
+		handles, labels = ax.get_legend_handles_labels()
+		ax.legend(handles[:2], labels[:2])
+
+	if not use_legend:
+		plt.legend([],[], frameon=False)
+
+	# Hide the right and top spines
+	ax.spines['right'].set_visible(False)
+	ax.spines['top'].set_visible(False)
+	
+	return ax
+	
+def plot_correlation_matrices(out_fn, title, n_values, matrices, labels, idxs, vmax):
+	
+	fig = plt.figure()
+	
+	for i in range(n_values):
+		plt.subplot(1, n_values, i+1)
+		
+		sns.heatmap(matrices[idxs][i], square=True, cbar_kws={"shrink": .25}, cmap='RdBu_r', vmax=vmax, vmin=-vmax)
+
+		plt.title(f'{labels[idxs[i]]}')
+		
+	plt.suptitle(title, y=0.75)
+	plt.tight_layout()
+
+	plt.savefig(out_fn, bbox_inches='tight')
+	plt.close('all')
+
+############################################
+############ NILEARN PLOTTING ##############
+############################################
+
 def plot_brain_volume(ds, vmax, title, cmap, out_fn=None):
 	# zcoodinates for plotting
 	coords = [range(-50,0,5), range(0,50,5)]
@@ -255,77 +539,6 @@ def plot_brain_values(ds, title, vmax, surf_mesh='fsaverage5', views=['lateral',
 	if out_fn:
 		plt.savefig(out_fn, bbox_inches='tight', transparent=True, dpi=300)                       
 		plt.close('all')
-	
-def plot_correlation_matrices(out_fn, title, n_values, matrices, labels, idxs, vmax):
-	
-	fig = plt.figure()
-	
-	for i in range(n_values):
-		plt.subplot(1, n_values, i+1)
-		
-		sns.heatmap(matrices[idxs][i], square=True, cbar_kws={"shrink": .25}, cmap='RdBu_r', vmax=vmax, vmin=-vmax)
-
-		plt.title(f'{labels[idxs[i]]}')
-		
-	plt.suptitle(title, y=0.75)
-	plt.tight_layout()
-
-	plt.savefig(out_fn, bbox_inches='tight')
-	plt.close('all')
-
-##### FOR COMBINING ACROSS TASKS #####
-
-def combine_images(columns, images, row_names=None, column_names=None, title=None, legend=None, fig_size=(16, 4), pad=5, out_fn=None):
-		
-		rows = len(images) // columns
-		if len(images) % columns:
-				rows += 1
-		fig = plt.figure(1, figsize=fig_size, constrained_layout=True)
-		grid = ImageGrid(fig, 111,  # similar to subplot(111)
-								 nrows_ncols=(rows, columns),  # creates 2x2 grid of axes
-								 axes_pad=0.1,  # pad between axes in inch.
-								 )
-		
-		for ax, im in zip(grid, images):
-		# Iterating over the grid returns the Axes.
-				im = plt.imread(im)
-				ax.imshow(im)
-				ax.get_xaxis().set_ticks([])
-				ax.get_yaxis().set_ticks([])
-				plt.setp(ax.spines.values(), visible=False) 
-		
-		if row_names:
-				for ax, row in zip(np.array(grid.axes_row)[:,0], row_names): # np.array(grid.axes_row)[:,0]
-#             ax.set_title(row)
-						ax.annotate(row, xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
-												xycoords=ax.yaxis.label, textcoords='offset points',
-												ha='right', va='center', fontsize=fig_size[0])
-		if column_names:
-				for ax, col in zip(np.array(grid.axes_row)[0], column_names): # np.array(grid.axes_row)[0]
-						ax.annotate(col, xy=(0.5, 1), xytext=(0, pad),
-												xycoords='axes fraction', textcoords='offset points',
-												ha='center', va='baseline', fontsize=fig_size[0])
-		
-		# fig.tight_layout()
-
-		if legend:
-				fig.text(x=0.95, y=0.4, 
-								 s=legend, 
-								 fontsize=fig_size[0], 
-								 bbox=dict(facecolor='none', edgecolor='black', pad=5.0))
-		
-		if title:
-			if row_names == None:
-				row_names = [None]
-
-				#0.1375
-			fig.suptitle(title, x=0.5, y=0.5 + 0.1125 * len(row_names), fontsize=fig_size[0]+6)
-
-		if out_fn:
-				plt.savefig(out_fn, bbox_inches='tight')
-				plt.close('all')
-				
-		return fig
 
 
 ############################################
@@ -476,121 +689,3 @@ def plot_surf_data(surfs, layers_info, surf_type='fslr', views=['lateral', 'medi
 		plt.close('all')
 	
 	return fig, p
-
-def scatter_barplot(df, x, y, group=None, palette='RdBu_r', ax=None, order=None, ci=95, use_legend=False, reverse_hatches=False):
-    """Create a bar plot with individual data points.
-    
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        Input data
-    x : str
-        Column name for x-axis categories
-    y : str
-        Column name for y-axis values
-    group : str, optional
-        Column name for grouping
-    palette : str, default='RdBu_r'
-        Color palette for the plot
-    ax : matplotlib.axes.Axes, optional
-        Axes to plot on
-    order : list, optional
-        Order of categories on x-axis
-    ci : int, default=95
-        Confidence interval for error bars
-    use_legend : bool, default=False
-        Whether to show the legend
-        
-    Returns
-    -------
-    matplotlib.axes.Axes
-        The axes object with the plot
-    """
-    if group is not None:
-        hue_order = np.unique(df[group])
-        n_groups = len(hue_order)
-        n_items = len(np.unique(df[x]))
-    else:
-        hue_order = None
-        n_groups = 1
-        n_items = len(np.unique(df[x]))
-    
-    if not palette:
-        palette = sns.cubehelix_palette(start=0.5, rot=-.5, dark=0.5, light=0.9)[::-1]
-        
-    if ax is None:
-        fig, ax = plt.subplots()
-
-    # Plot bars with error bars
-    bar_plot = sns.barplot(x=x, y=y, hue=group, data=df, palette=palette, 
-                          order=order, hue_order=hue_order, ci=ci, ax=ax, 
-                          edgecolor='black', saturation=1, linewidth=2, zorder=2)
-    
-    # Set colors and hatches
-    if group is not None:
-        box_colors = [c for i in range(n_groups) for c in palette]
-        
-        # Get all patches and set their colors
-        for i, patch in enumerate(ax.patches):
-            color_idx = i % len(box_colors)
-            patch.set_facecolor(box_colors[color_idx])
-            patch.set_edgecolor('black')
-
-        # Add hatches to the second bar in each pair
-        hatches = ['', '///']    
-        for i, patch in enumerate(ax.patches):
-            if i >= n_items:
-                color_idx = (i - n_items) % len(box_colors)
-                
-                if reverse_hatches:
-                    # Create a new patch with the same dimensions but only hatch
-                    x_pos, y_pos = patch.get_x(), patch.get_y()
-                    width, height = patch.get_width(), patch.get_height()
-                    
-                    hatch_patch = plt.Rectangle((x_pos, y_pos), width, height, 
-                                            facecolor='none', 
-                                            hatch=hatches[1],
-                                            edgecolor=box_colors[color_idx],
-                                            linewidth=0,
-                                            zorder=1)  # Behind bars but above background
-                    ax.add_patch(hatch_patch)
-                    
-                    # Keep the original patch visible with white/transparent face
-                    patch.set_facecolor('none')
-                    patch.set_alpha(1)  # Semi-transparent instead of invisible
-                else:
-                    patch.set_hatch(hatches[1])
-
-    # Plot individual points - increase zorder to ensure they're visible
-    dodge = True if group is not None else False
-    sns.stripplot(x=x, y=y, hue=group, data=df,
-                  marker='o', color='0.9', alpha=0.6, edgecolor='0.1', 
-                  linewidth=0.15, dodge=dodge, palette=palette, ax=ax, 
-                  order=order, zorder=15)  # Higher zorder
-
-    # Set dot colors
-    if group is not None:
-        dot_colors = sum([[c]*2 for c in box_colors], [])
-        for collection, color in zip(ax.collections, dot_colors):
-            collection.set_facecolor(color)
-    
-    if group is not None:
-        ax.get_legend().remove()
-        
-        # Connect points between groups - increase zorder for visibility
-        for ax1, ax2 in chunkwise(ax.collections, size=2):
-            for (x0, y0), (x1, y1) in zip(ax1.get_offsets(), ax2.get_offsets()):
-                ax.plot([x0, x1], [y0, y1], color='black', alpha=0.3, 
-                       linewidth=0.8, zorder=14)  # High zorder for visibility
-    
-        handles, labels = ax.get_legend_handles_labels()
-        ax.legend(handles[:2], labels[:2])
-
-    if not use_legend:
-        plt.legend([],[], frameon=False)
-
-    # Hide the right and top spines
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-    
-    return ax

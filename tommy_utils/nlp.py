@@ -1,23 +1,26 @@
-import os, sys
+import os
+import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import regex as re
-from subprocess import run
-from pathlib import Path
+import torch
+from torch.nn import functional as F
 
 import gensim.downloader
 from gensim.models import KeyedVectors
 from gensim.models import fasttext
 from gensim import downloader as api
-
 import fasttext.util as ftutil
 
-#### STUFF FOR TRANSFORMERS ######
-import torch
-from torch.nn import functional as F
 from scipy.special import rel_entr, kl_div
 from scipy import stats
 from scipy.spatial.distance import cdist, pdist
+
+##################################
+##### MODEL CONFIGURATION ########
+##################################
 
 WORD_MODELS = {
 	'glove': 'glove.42B.300d.zip',
@@ -50,12 +53,25 @@ MULTIMODAL_MODELS_DICT = {
 	'clip': "openai/clip-vit-base-patch32"
 }
 
-def load_word_model(model_name, cache_dir=None):
-	'''
-	Given the path to a glove model file,  load the model
-	into the gensim word2vec format for ease
-	'''
+##################################
+##### WORD EMBEDDINGS ############
+##################################
 
+def load_word_model(model_name, cache_dir=None):
+	"""Load word embedding models (GloVe, Word2Vec, FastText).
+
+	Parameters
+	----------
+	model_name : str
+		Name of the model ('glove', 'word2vec', 'fasttext')
+	cache_dir : str, optional
+		Cache directory for model files
+
+	Returns
+	-------
+	model : gensim.models.KeyedVectors
+		Loaded word embedding model
+	"""
 	if cache_dir:
 		os.environ['GENSIM_DATA_DIR'] = cache_dir
 
@@ -67,20 +83,18 @@ def load_word_model(model_name, cache_dir=None):
 		model_fn = os.path.join(model_dir, f'gensim-{model_name}.bin')
 		vocab_fn = os.path.join(model_dir, f'gensim-vocab-{model_name}.bin')
 
-		# if the files don't already exist, load the files and save out for next time
-		print (f'Loading {model_name} from saved .bin file.')
-
+		print(f'Loading {model_name} from saved .bin file.')
 		model = KeyedVectors.load_word2vec_format(model_fn, vocab_fn, binary=True)
 
 	elif 'word2vec' in model_name:
-		print (f'Loading {model_name} from saved .bin file.')
-		model = api.load(WORD_MODELS[model_name])   
-	elif 'fasttext' in model_name:
+		print(f'Loading {model_name} from saved .bin file.')
+		model = api.load(WORD_MODELS[model_name])
 
-		print (f'Loading {model_name} from saved .bin file.')
+	elif 'fasttext' in model_name:
+		print(f'Loading {model_name} from saved .bin file.')
 		curr_dir = os.getcwd()
 
-		# set the fasttext directory
+		# Set FastText directory
 		if cache_dir:
 			fasttext_dir = os.path.join(cache_dir, 'fasttext')
 		else:
@@ -90,156 +104,212 @@ def load_word_model(model_name, cache_dir=None):
 			os.makedirs(fasttext_dir)
 
 		os.chdir(fasttext_dir)
-
-		# # download to the fasttext directory
-		ftutil.download_model('en', if_exists='ignore')  # English
-		
+		ftutil.download_model('en', if_exists='ignore')
 		os.chdir(curr_dir)
+
 		model = fasttext.load_facebook_vectors(os.path.join(fasttext_dir, WORD_MODELS[model_name]))
 
 	return model
 
 def get_basis_vector(model, pos_words, neg_words):
+	"""Create a semantic basis vector from positive and negative word sets."""
 	basis = model[pos_words].mean(0) - model[neg_words].mean(0)
-	basis = basis / 1
 	return basis
 
 def get_word_score(model, basis, word):
-	word_score = np.dot(model[word], basis)
-	return word_score
+	"""Project word onto semantic basis vector."""
+	return np.dot(model[word], basis)
 
-'''Serializable/Pickleable class to replicate the functionality of collections.defaultdict'''
+##################################
+##### WORD CLUSTERING ############
+##################################
+
 class autovivify_list(dict):
-		def __missing__(self, key):
-				value = self[key] = []
-				return value
+	"""Serializable defaultdict-like class for lists."""
 
-		def __add__(self, x):
-				'''Override addition for numeric types when self is empty'''
-				if not self and isinstance(x, Number):
-						return x
-				raise ValueError
+	def __missing__(self, key):
+		value = self[key] = []
+		return value
 
-		def __sub__(self, x):
-				'''Also provide subtraction method'''
-				if not self and isinstance(x, Number):
-						return -1 * x
-				raise ValueError
+	def __add__(self, x):
+		"""Override addition for numeric types when self is empty."""
+		if not self and isinstance(x, Number):
+			return x
+		raise ValueError
 
+	def __sub__(self, x):
+		"""Override subtraction for numeric types when self is empty."""
+		if not self and isinstance(x, Number):
+			return -1 * x
+		raise ValueError
 
 def find_word_clusters(labels_array, cluster_labels):
+	"""Map cluster labels to their member words."""
 	cluster_to_words = autovivify_list()
 	for c, i in enumerate(cluster_labels):
 		cluster_to_words[i].append(labels_array[c])
 	return cluster_to_words
 
 def get_word_clusters(model, cluster, words, norm=True):
+	"""Cluster words based on their embeddings."""
 	from sklearn.metrics import silhouette_samples
+
 	vectors = np.stack([model.get_vector(word, norm=norm) for word in words])
-	
-	# Fit model to samples
+
 	cluster.fit(vectors)
 	clusters = find_word_clusters(words, cluster.labels_)
-	
 	scores = silhouette_samples(vectors, cluster.labels_)
-	
+
 	return clusters, cluster.labels_, scores
 
+##################################
+##### TRANSFORMER MODELS #########
+##################################
+
 def load_clm_model(model_name, cache_dir=None):
-	'''
-	Use a model from the sentence-transformers library to get
-	sentence embeddings. Models used are trained on a next-sentence
-	prediction task and evaluate the likelihood of S2 following S1.
-	'''
-	# set the path of where to download models
-	# this NEEDS to be run before loading from transformers
+	"""Load causal language models (GPT, LLaMA, etc.).
+
+	Parameters
+	----------
+	model_name : str
+		Model name from CLM_MODELS_DICT or MLM_MODELS_DICT
+	cache_dir : str, optional
+		Cache directory for model files
+
+	Returns
+	-------
+	tokenizer : transformers.PreTrainedTokenizer
+		Model tokenizer
+	model : transformers.PreTrainedModel
+		Causal language model
+	"""
 	if cache_dir:
 		os.environ['TRANSFORMERS_CACHE'] = cache_dir
 
-	from transformers import AutoTokenizer, AutoModel, AutoConfig, AutoModelForCausalLM, AutoModelForMaskedLM, AutoModelWithLMHead
-		
+	from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
+
 	if (model_name not in CLM_MODELS_DICT) and (model_name not in MLM_MODELS_DICT):
-		print (f'Model not in dictionary - please download and add it to the dictionary')
+		print(f'Model not in dictionary - please download and add it to the dictionary')
 		sys.exit(0)
 
-	# load a tokenizer and a model
-	if model_name in CLM_MODELS_DICT.keys():
+	# Load tokenizer
+	if model_name in CLM_MODELS_DICT:
 		tokenizer = AutoTokenizer.from_pretrained(CLM_MODELS_DICT[model_name])
-	elif model_name in MLM_MODELS_DICT.keys():
+	elif model_name in MLM_MODELS_DICT:
 		tokenizer = AutoTokenizer.from_pretrained(MLM_MODELS_DICT[model_name])
 	else:
 		sys.exit(0)
 
 	if not tokenizer.pad_token:
-	   tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-	
+		tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+
+	# Load model with appropriate configuration
 	if model_name in ['electra', 'xlm-prophetnet']:
 		config = AutoConfig.from_pretrained(MLM_MODELS_DICT[model_name])
 		config.is_decoder = True
 		model = AutoModelForCausalLM.from_pretrained(MLM_MODELS_DICT[model_name], config=config, use_safetensors=True)
+	elif model_name == 'roberta':
+		model = AutoModelForCausalLM.from_pretrained(MLM_MODELS_DICT[model_name], use_safetensors=True)
 	else:
-		if model_name == 'roberta':
-			model = AutoModelForCausalLM.from_pretrained(MLM_MODELS_DICT[model_name], use_safetensors=True)
-		else:
-			model = AutoModelForCausalLM.from_pretrained(CLM_MODELS_DICT[model_name], use_safetensors=True)
+		model = AutoModelForCausalLM.from_pretrained(CLM_MODELS_DICT[model_name], use_safetensors=True)
 
 	model.eval()
-	
+
 	return tokenizer, model
 
 def load_mlm_model(model_name, cache_dir=None):
-	'''
-	Use a model from the sentence-transformers library to get
-	sentence embeddings. Models used are trained on a next-sentence
-	prediction task and evaluate the likelihood of S2 following S1.
-	'''
-	# set the path of where to download models
-	# this NEEDS to be run before loading from transformers
+	"""Load masked language models (BERT, RoBERTa, etc.).
+
+	Parameters
+	----------
+	model_name : str
+		Model name from MLM_MODELS_DICT
+	cache_dir : str, optional
+		Cache directory for model files
+
+	Returns
+	-------
+	tokenizer : transformers.PreTrainedTokenizer
+		Model tokenizer
+	model : transformers.PreTrainedModel
+		Masked language model
+	"""
 	if cache_dir:
 		os.environ['TRANSFORMERS_CACHE'] = cache_dir
 
 	from transformers import AutoTokenizer, AutoModel
 
-	# Load model from HuggingFace Hub
 	tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
 	model = AutoModel.from_pretrained(model_name, use_safetensors=True)
-	
+
 	model.eval()
 
 	return tokenizer, model
 
 def load_multimodal_model(model_name, modality, cache_dir=None):
-	'''
-	Use a model from the sentence-transformers library to get
-	sentence embeddings. Models used are trained on a next-sentence
-	prediction task and evaluate the likelihood of S2 following S1.
-	'''
-	# set the path of where to download models
-	# this NEEDS to be run before loading from transformers
+	"""Load multimodal models (CLIP, etc.).
+
+	Parameters
+	----------
+	model_name : str
+		Model name from MULTIMODAL_MODELS_DICT
+	modality : str
+		Modality to load ('vision' or 'language')
+	cache_dir : str, optional
+		Cache directory for model files
+
+	Returns
+	-------
+	tokenizer : transformers.PreTrainedTokenizer or AutoProcessor
+		Tokenizer/processor for the specified modality
+	model : transformers.PreTrainedModel
+		Multimodal model
+	"""
 	if cache_dir:
 		os.environ['TRANSFORMERS_CACHE'] = cache_dir
-	
+
 	from transformers import AutoTokenizer, AutoProcessor, AutoModel
 
 	if model_name not in MULTIMODAL_MODELS_DICT:
-		print (f'Model not in dictionary - please download and add it to the dictionary')
+		print(f'Model not in dictionary - please download and add it to the dictionary')
 		sys.exit(0)
 
-	# load clip 
 	model = AutoModel.from_pretrained(MULTIMODAL_MODELS_DICT[model_name], use_safetensors=True)
-	
+
 	if modality == 'vision':
 		tokenizer = AutoProcessor.from_pretrained(MULTIMODAL_MODELS_DICT[model_name])
 	elif modality == 'language':
 		tokenizer = AutoTokenizer.from_pretrained(MULTIMODAL_MODELS_DICT[model_name])
-	
+
 	model.eval()
-	
+
 	return tokenizer, model
 
+##################################
+##### MODEL INFERENCE ############
+##################################
+
 def get_clm_predictions(inputs, model, tokenizer, out_fn=None):
+	"""Get next-word predictions from causal language model.
+
+	Parameters
+	----------
+	inputs : list of str
+		Input text sequences
+	model : transformers.PreTrainedModel
+		Language model
+	tokenizer : transformers.PreTrainedTokenizer
+		Tokenizer
+	out_fn : str, optional
+		Path to save logits
+
+	Returns
+	-------
+	probs : torch.Tensor
+		Next-word probabilities (n_inputs, vocab_size)
+	"""
 	if any(model_name in model.name_or_path for model_name in MLM_MODELS_DICT.keys()):
-		# append a mask token
+		# For MLM models, append mask token
 		inputs = [f'{ins} {tokenizer.mask_token}' for ins in inputs]
 		tokens = tokenizer(inputs, return_tensors="pt").to(model.device)
 		with torch.no_grad():
@@ -249,70 +319,111 @@ def get_clm_predictions(inputs, model, tokenizer, out_fn=None):
 		with torch.no_grad():
 			logits = model(**tokens).logits[:, -1, :]
 
-	# convert to probs and detach
 	probs = F.softmax(logits, dim=-1).detach().cpu()
 
-	# save logits if requested
 	if out_fn:
 		torch.save(logits.cpu(), out_fn)
 
 	return probs
 
-def get_segment_indices(n_words, window_size, bidirectional=False):
-	'''
-	Given n_words (a total number of words in a transcript) and the 
-	size of a context window, return the indices for extracting segments
-	of text.
-	'''
+##################################
+##### TEXT PROCESSING ############
+##################################
 
+def get_segment_indices(n_words, window_size, bidirectional=False):
+	"""Generate context window indices for each word.
+
+	Parameters
+	----------
+	n_words : int
+		Total number of words
+	window_size : int
+		Size of context window
+	bidirectional : bool
+		Whether to use bidirectional context
+
+	Returns
+	-------
+	indices : list of np.ndarray
+		Context indices for each word
+	"""
 	if bidirectional:
 		indices = []
 		for i in range(0, n_words):
-			# add right side context of half the window size while increasing left side context
 			if i <= window_size // 2:
+				# Growing right context at start
 				idxs = np.arange(0, (i + window_size // 2) + 1)
-			# add left side context while reducing right side context size
 			elif i >= (n_words - window_size // 2):
+				# Growing left context at end
 				idxs = np.arange((i - window_size // 2), n_words)
 			else:
+				# Full bidirectional context
 				idxs = np.arange(i - window_size // 2, (i + window_size // 2) + 1)
 
 			indices.append(idxs)
 	else:
+		# Unidirectional (left) context
 		indices = [
 			np.arange(i-window_size, i) if i > window_size else np.arange(0, i)
 			for i in range(1, n_words + 1)
 		]
-		
+
 	return indices
 
 def transcript_to_input(df_transcript, idxs, add_punctuation=False):
-	'''
-	Given the transcript dataframe, extract the transcript text
-	over a set of indices to submit to a model
-	'''
-	
-	inputs = []
-	
-	# go through rows of current segment
-	for i, row in df_transcript.iloc[idxs].iterrows():
-		# sometimes there is punctuation, other times there is whitespace
-		# we add in the punctuation as it helps the model but remove trailing whitespaces
+	"""Convert transcript segment to model input string.
 
+	Parameters
+	----------
+	df_transcript : pd.DataFrame
+		Transcript dataframe
+	idxs : array-like
+		Indices to extract
+	add_punctuation : bool
+		Whether to include punctuation
+
+	Returns
+	-------
+	inputs : str
+		Concatenated text segment
+	"""
+	inputs = []
+
+	for i, row in df_transcript.iloc[idxs].iterrows():
 		if add_punctuation:
 			item = row['word'] + row['punctuation']
 		else:
 			item = row['word']
 
 		inputs.append(str(item).strip())
-	
-	# join together into the sentence to submit
+
+	# Join into sentence
 	inputs = ' '.join(inputs)
 	return inputs
 
+##################################
+##### EMBEDDING EXTRACTION #######
+##################################
+
 def get_word_prob(tokenizer, word, logits, softmax=True):
-	
-	# use the tokenizer to find the index of each word, 
+	"""Get probability of a word from model logits.
+
+	Parameters
+	----------
+	tokenizer : transformers.PreTrainedTokenizer
+		Tokenizer
+	word : str
+		Target word
+	logits : torch.Tensor
+		Model logits
+	softmax : bool
+		Whether to apply softmax
+
+	Returns
+	-------
+	prob : float
+		Mean probability across subword tokens
+	"""
 	idxs = tokenizer(word)['input_ids']
 
 	if softmax:
@@ -321,106 +432,122 @@ def get_word_prob(tokenizer, word, logits, softmax=True):
 		probs = logits
 
 	word_prob = probs[:, idxs]
-	
+
 	return word_prob.squeeze().mean().item()
 
 def subwords_to_words(sentence, tokenizer):
-	
-	word_token_pairs = []
-	
-	# split the sentence on spaces + punctuation (excluding apostrophes and hyphens within words)
-	regex_split_pattern = r'(\w|\.\w|\:\w|\’\w|\'\w|\-\w|\S)+'
+	"""Map subword tokens back to words.
 
-	# regex_split_pattern = r"[\w]+[’'.-:]?[\w]*"
+	Parameters
+	----------
+	sentence : str
+		Input sentence
+	tokenizer : transformers.PreTrainedTokenizer
+		Tokenizer
+
+	Returns
+	-------
+	word_token_pairs : list of tuple
+		List of (word, tokens, char_indices) tuples
+	"""
+	word_token_pairs = []
+
+	# Split on spaces and punctuation (excluding apostrophes and hyphens within words)
+	regex_split_pattern = r'(\w|\.\w|\:\w|\'\w|\'\w|\-\w|\S)+'
 
 	for m in re.finditer(regex_split_pattern, sentence):
 		word = m.group(0)
 		tokens = tokenizer.encode(word, add_special_tokens=False)
 		char_idxs = (m.start(), m.end()-1)
-		
+
 		word_token_pairs.append((word, tokens, char_idxs))
-	
+
 	return word_token_pairs
 
 def extract_word_embeddings(sentences, tokenizer, model, word_indices=None):
-	'''
-	Given a list of sentences, pass them through the tokenizer/model. Then pair
-	sub-word tokens into the words of the actual sentence and extract the true
-	word embeddings. 
-	
-	If wanted, can return only certain indices (specified by word_indices)
-	
-	Currently not robust to different length strings MBMB
-	'''
-	
+	"""Extract word-level embeddings from transformer models.
+
+	Aggregates subword tokens into word-level representations across all layers.
+
+	Parameters
+	----------
+	sentences : str or list of str
+		Input sentences
+	tokenizer : transformers.PreTrainedTokenizer
+		Tokenizer
+	model : transformers.PreTrainedModel
+		Model
+	word_indices : int or list of int, optional
+		Specific word indices to return
+
+	Returns
+	-------
+	embeddings : torch.Tensor
+		Word embeddings (n_sentences, n_words, n_layers, hidden_size)
+	"""
 	if isinstance(sentences, str):
 		sentences = [sentences]
-	
+
 	if not sentences:
 		return []
-	
-	# get the full sentence tokenized
+
+	# Tokenize sentences
 	encoded_inputs = tokenizer(sentences, padding=True, truncation=True, return_tensors="pt")
-	
-	# get the embeddings
+
+	# Get model outputs
 	with torch.no_grad():
 		model_output = model(**encoded_inputs, output_hidden_states=True)
-	
+
 	all_embeddings = []
-	
-	# bring together the current sentence, its tokens, and its embeddings
+
 	for i, sent in enumerate(sentences):
-		# now pair subwords into words for the current sentence
+		# Map subwords to words
 		subword_word_pairs = subwords_to_words(sent, tokenizer)
-		
+
 		embeddings = []
-		
-		# for the current set of word subword pairs, get the embeddings
+
 		for (word, tokens, char_span) in subword_word_pairs:
-			
-			# given the character to token mapping in the sentence, 
-			# find the first and last token indices
+			# Find token indices for this word
 			start_token = encoded_inputs.char_to_token(batch_or_char_index=i, char_index=char_span[0])
 			end_token = encoded_inputs.char_to_token(batch_or_char_index=i, char_index=char_span[-1])
-			
-			# extract the embedding for the given word
+
+			# Sum subword embeddings across all layers
 			word_embed = torch.stack([layer[i, start_token:end_token+1, :].sum(0) for layer in model_output['hidden_states']])
 			embeddings.append(word_embed)
-			
-		# stack the embeddings together
-		embeddings = torch.stack(embeddings)
-		
-		# make sure the mapping happened correctly
-		if len(sent.split()) != embeddings.shape[0]:
-			print (subword_word_pairs)
-			print (len(subword_word_pairs))
-			print (embeddings.shape)
-			print (len(sent.split()))
 
-		assert (len(sent.split()) == embeddings.shape[0])
-		
+		embeddings = torch.stack(embeddings)
+
+		# Verify word count matches
+		if len(sent.split()) != embeddings.shape[0]:
+			print(subword_word_pairs)
+			print(len(subword_word_pairs))
+			print(embeddings.shape)
+			print(len(sent.split()))
+
+		assert len(sent.split()) == embeddings.shape[0]
+
 		all_embeddings.append(embeddings)
-	
+
 	all_embeddings = torch.stack(all_embeddings)
-	
-	if word_indices:
+
+	if word_indices is not None:
 		return all_embeddings[:, word_indices, :]
 	else:
 		return all_embeddings
 
-##############################################################
-######## SPECIFIC TO WORD PREDICTION COMPARISON ##############
-##############################################################
+##################################
+##### PREDICTION ANALYSIS ########
+##################################
 
 def create_results_dataframe():
-	
-	df = pd.DataFrame(columns = [
+	"""Create dataframe for word prediction analysis results."""
+	df = pd.DataFrame(columns=[
 		'ground_truth_word',
 		'ground_truth_prob',
-		'top_n_predictions', 
+		'top_n_predictions',
 		'top_prob',
-		'binary_accuracy', 
-		'glove_avg_accuracy', 
+		'binary_accuracy',
+		'glove_avg_accuracy',
 		'glove_max_accuracy',
 		'glove_prediction_density',
 		'word2vec_avg_accuracy',
@@ -429,41 +556,49 @@ def create_results_dataframe():
 		'fasttext_avg_accuracy',
 		'fasttext_max_accuracy',
 		'fasttext_prediction_density',
-		'entropy', 
+		'entropy',
 		'relative_entropy'])
-	
+
 	return df
 
 def get_word_vector_metrics(word_model, predicted_words, ground_truth_word, method='mean'):
-	'''
-	Given a word model, a set of response words, and a ground truth word
-	evaluate:
-		 1) semantic similarity to ground truth
-		 2) cluster density of responses 
-	'''
+	"""Evaluate semantic similarity and prediction density.
 
-	# how similar was the ground truth to the list of top words
-	# make sure we have a word model to use and that the word of interest is a key
-	# if the model is fasttext we can perform inference on unknown words
-	words_in_model =  any([word in word_model for word in predicted_words])
+	Parameters
+	----------
+	word_model : gensim.models.KeyedVectors
+		Word embedding model
+	predicted_words : list of str
+		Predicted words
+	ground_truth_word : str
+		Ground truth word
+	method : str
+		Aggregation method ('mean', 'max', or None)
+
+	Returns
+	-------
+	similarity : float
+		Semantic similarity to ground truth
+	density : float
+		Prediction cluster density
+	"""
+	words_in_model = any([word in word_model for word in predicted_words])
 
 	if (ground_truth_word in word_model) and (words_in_model):
-		# get word vectors from model
+		# Get word vectors
 		ground_truth_vector = word_model[ground_truth_word][np.newaxis]
 		predicted_vectors = [word_model[word] for word in predicted_words if word in word_model]
 		predicted_vectors = np.stack(predicted_vectors)
 
-		# calculate cosine similarity
+		# Calculate cosine similarity
 		gt_pred_similarity = 1 - cdist(ground_truth_vector, predicted_vectors, metric='cosine')
 
 		if method == 'max':
 			gt_pred_similarity = np.nanmax(gt_pred_similarity)
 		elif method == 'mean':
 			gt_pred_similarity = np.nanmean(gt_pred_similarity)
-		else:
-			gt_pred_similarity = gt_pred_similarity
 
-		# calculate spread of predictions as average pairwise distances
+		# Calculate prediction spread as average pairwise distances
 		if predicted_vectors.shape[0] != 1:
 			pred_distances = pdist(predicted_vectors, metric='cosine')
 			pred_distances = np.nanmean(pred_distances).squeeze()

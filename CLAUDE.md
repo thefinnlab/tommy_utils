@@ -70,14 +70,20 @@ The package is organized into domain-specific modules:
    - Amplitude-modulated regressors
    - Duration-modulated regressors
 
-7. **`custom_solvers.py`** - Custom Himalaya solvers
+7. **`atlas.py`** - Brain atlas utilities
+   - Loading and combining brain atlases (Fedorenko, Glasser, visual ROIs)
+   - Atlas manipulation (masking, parcellation, region extraction)
+   - Converting data to parcels using atlas definitions
+   - Handling overlapping regions with priority-based combination
+
+8. **`custom_solvers.py`** - Custom Himalaya solvers
    - Group-level banded ridge regression
    - Group-level multiple kernel ridge regression
 
-8. **`delayer.py`** - HRF delay modeling
+9. **`delayer.py`** - HRF delay modeling
    - Creates time-lagged features for encoding models
 
-9. **`misc.py`** - Miscellaneous utilities
+10. **`misc.py`** - Miscellaneous utilities
 
 ## Key Workflows
 
@@ -119,6 +125,21 @@ For significance testing:
 2. Calculate p-values using `p_from_null()`
 3. Apply multiple comparison correction as needed
 
+### Atlas-Based Analysis
+
+For working with brain atlases:
+
+1. **Load Individual Atlases** - Use atlas-specific loaders:
+   - `load_fedorenko_atlas()` for language, ToM, or MD networks
+   - `load_glasser_atlas()` for HCP multi-modal parcellation
+   - `load_visual_rois()` for NSD visual streams or Kastner2015 atlases
+
+2. **Combine Multiple Atlases** - Use `load_combined_atlas()` to merge atlases with priority ordering
+
+3. **Convert to Parcels** - Use `data_to_parcel()` to aggregate voxel/vertex-wise data into parcels
+
+4. **Create Masks** - Use `create_atlas_mask()` to extract specific regions of interest
+
 ## Important Implementation Details
 
 ### Himalaya Integration
@@ -153,6 +174,20 @@ When working with surface data, be aware of valid densities:
 - fsaverage: '3k', '10k', '41k', '164k'
 - fslr: '4k', '8k', '32k', '164k'
 - civet: '41k', '164k'
+
+### Data Directory Structure
+
+The package includes data files organized by module in `tommy_utils/data/`:
+- `data/nlp/` - NLP-related data (CMU phoneme dictionary)
+- `data/atlases/` - Brain atlas files:
+  - `fedorenko/language/` - Language network atlas files
+  - `fedorenko/MD/` - Multiple demand network atlas files
+  - `fedorenko/ToM/` - Theory of mind network atlas files
+  - `glasser/` - HCP multi-modal parcellation atlas
+  - `nsd_streams/` - NSD visual streams atlas
+  - `Kastner2015/` - Kastner 2015 visual atlas
+
+Atlas functions in `atlas.py` automatically use the packaged data directory, but you can override this by passing a custom `data_dir` parameter.
 
 ## Development Practices
 

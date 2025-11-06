@@ -1,0 +1,217 @@
+Parcel Index,Area Name,Area Description,Aggregate Label,Cortex
+1,V1,Primary Visual Cortex,V1,Primary_Visual
+2,MST,"Medial Superior
+Temporal Area",hMT (human MT),MT+_Complex_and_Neighboring_Visual_Areas
+3,V6,Sixth Visual Area,V6,Dorsal_Stream_Visual
+4,V2,Second Visual Area,V2,Early_Visual
+5,V3,Third Visual Area,V3,Early_Visual
+6,V4,Fourth Visual Area,V4,Early_Visual
+7,V8,Eighth Visual Area,V8,Ventral_Stream_Visual
+8,4,"Primary Motor
+Cortex",,Somatosensory_and_Motor
+9,3b,"Primary Sensory
+Cortex",,Somatosensory_and_Motor
+10,FEF,Frontal Eye Fields,PreMot (PreMotor Cortex),Premotor
+11,PEF,Premotor Eye Field,PreMot (PreMotor Cortex),Premotor
+12,55b,Area 55b,PreMot (PreMotor Cortex),Premotor
+13,V3A,Area V3A,V3,Dorsal_Stream_Visual
+14,RSC,RetroSplenial Complex,PostCin (Post Cingulate Cortex),Posterior_Cingulate
+15,POS2,Parieto-Occipital Sulcus Area 2,POS (ParietoOccipital Sulcus),Posterior_Cingulate
+16,V7,Seventh Visual Area,V7,Dorsal_Stream_Visual
+17,IPS1,IntraParietal Sulcus Area 1,IPS (IntraParietal Sulcus),Dorsal_Stream_Visual
+18,FFC,Fusiform Face Complex,FFC (Fusiform Face Complex),Ventral_Stream_Visual
+19,V3B,Area V3B,V3,Dorsal_Stream_Visual
+20,LO1,Area Lateral Occipital 1,,MT+_Complex_and_Neighboring_Visual_Areas
+21,LO2,Area Lateral Occipital 2,,MT+_Complex_and_Neighboring_Visual_Areas
+22,PIT,"Posterior
+InferoTemporal complex",PIT (Posterior InferoTemporal),Ventral_Stream_Visual
+23,MT,"Middle Temporal
+Area",hMT (human MT),MT+_Complex_and_Neighboring_Visual_Areas
+24,A1,Primary Auditory Cortex,Early auditory,Early_Auditory
+25,PSL,"PeriSylvian Language
+Area",PSL (PeriSylvian Language),Temporo-Parieto_Occipital_Junction
+26,SFL,"Superior Frontal
+Language Area",,Dorsolateral_Prefrontal
+27,PCV,"PreCuneus Visual
+Area",PostCin (Post Cingulate Cortex),Posterior_Cingulate
+28,STV,"Superior Temporal
+Visual Area",STV (Superior Temporal Visual Cortex),Temporo-Parieto-Occipital_Junction
+29,7Pm,Medial Area 7P,Area 7 (Parietal Cortex),Superior_Parietal
+30,7m,Area 7m,PostCin (Post Cingulate Cortex),Posterior_Cingulate
+31,POS1,"Parieto-Occipital
+Sulcus Area 1",POS (ParietoOccipital Sulcus),Posterior_Cingulate
+32,23d,Area 23d,PostCin (Post Cingulate Cortex),Posterior_Cingulate
+33,v23ab,Area ventral 23 a+b,PostCin (Post Cingulate Cortex),Posterior_Cingulate
+34,d23ab,Area dorsal 23 a+b,PostCin (Post Cingulate Cortex),Posterior_Cingulate
+35,31pv,Area 31p ventral,PostCin (Post Cingulate Cortex),Posterior_Cingulate
+36,5m,Area 5m,,Paracentral_Lobular_and_Mid_Cingulate
+37,5mv,Area 5m ventral,,Paracentral_Lobular_and_Mid_Cingulate
+38,23c,Area 23c,PostCin (Post Cingulate Cortex),Paracentral_Lobular_and_Mid_Cingulate
+39,5L,Area 5L,,Paracentral_Lobular_and_Mid_Cingulate
+40,24dd,Dorsal Area 24d,,Paracentral_Lobular_and_Mid_Cingulate
+41,24dv,Ventral Area 24d,,Paracentral_Lobular_and_Mid_Cingulate
+42,7AL,Lateral Area 7A,Area 7 (Parietal Cortex),Superior_Parietal
+43,SCEF,"Supplementary and
+Cingulate Eye Field",,Paracentral_Lobular_and_Mid_Cingulate
+44,6ma,Area 6m anterior,,Paracentral_Lobular_and_Mid_Cingulate
+45,7Am,Medial Area 7A,Area 7 (Parietal Cortex),Superior_Parietal
+46,7Pl,Lateral Area 7P,Area 7 (Parietal Cortex),Superior_Parietal
+47,7PC,Area 7PC,Area 7 (Parietal Cortex),Superior_Parietal
+48,LIPv,"Area Lateral
+IntraParietal ventral",IPS (IntraParietal Sulcus),Superior_Parietal
+49,VIP,Ventral IntraParietal Complex,IPS (IntraParietal Sulcus),Superior_Parietal
+50,MIP,Medial IntraParietal Area,IPS (IntraParietal Sulcus),Superior_Parietal
+51,1,Area 1,,Somatosensory_and_Motor
+52,2,Area 2,,Somatosensory_and_Motor
+53,3a,Area 3a,,Somatosensory_and_Motor
+54,6d,Dorsal area 6,PreMot (PreMotor Cortex),Premotor
+55,6mp,Area 6mp,,Paracentral_Lobular_and_Mid_Cingulate
+56,6v,Ventral Area 6,PreMot (PreMotor Cortex),Premotor
+57,p24pr,Area Posterior 24 prime,AntCin (Anterior Cingulate Cortex),Anterior_Cingulate_and_Medial_Prefrontal
+58,33pr,Area 33 prime,AntCin (Anterior Cingulate Cortex),Anterior_Cingulate_and_Medial_Prefrontal
+59,a24pr,Anterior 24 prime,AntCin (Anterior Cingulate Cortex),Anterior_Cingulate_and_Medial_Prefrontal
+60,p32pr,Area p32 prime,AntCin (Anterior Cingulate Cortex),Anterior_Cingulate_and_Medial_Prefrontal
+61,a24,Area a24,AntCin (Anterior Cingulate Cortex),Anterior_Cingulate_and_Medial_Prefrontal
+62,d32,Area dorsal 32,AntCin (Anterior Cingulate Cortex),Anterior_Cingulate_and_Medial_Prefrontal
+63,8BM,Area 8BM,"mPFC (Area 8, Medial Prefrontal Cortex)",Anterior_Cingulate_and_Medial_Prefrontal
+64,p32,Area p32,AntCin (Anterior Cingulate Cortex),Anterior_Cingulate_and_Medial_Prefrontal
+65,10r,Area 10r,"OFC (Area 10, OrbitoFrontal Cortex)",Anterior_Cingulate_and_Medial_Prefrontal
+66,47m,Area 47m,"Area 47 (Inferior Frontal, pars Orbitalis)",Orbital_and_Polar_Frontal
+67,8Av,Area 8Av,"dlPFC (Area 8, Dorsolateral Prefrontal Cortex)",Dorsolateral_Prefrontal
+68,8Ad,Area 8Ad,"dlPFC (Area 8, Dorsolateral Prefrontal Cortex)",Dorsolateral_Prefrontal
+69,9m,Area 9 Middle,"mPFC (Area 9, Medial Prefrontal Cortex)",Anterior_Cingulate_and_Medial_Prefrontal
+70,8BL,Area 8B Lateral,"dlPFC (Area 8, Dorsolateral Prefrontal Cortex)",Dorsolateral_Prefrontal
+71,9p,Area 9 Posterior,"dlPFC (Area 9, Dorsolateral Prefrontal Cortex)",Dorsolateral_Prefrontal
+72,10d,Area 10d,"OFC (Area 10, OrbitoFrontal Cortex)",Orbital_and_Polar_Frontal
+73,8C,Area 8C,"dlPFC (Area 8, Dorsolateral Prefrontal Cortex)",Dorsolateral_Prefrontal
+74,44,Area 44,"BA44 (Inferior Frontal, pars Opercularis)",Inferior_Frontal
+75,45,Area 45,"BA45 (Inferior Frontal, pars Triangularis)",Inferior_Frontal
+76,47l,Area 47l (47 lateral),"Area 47 (Inferior Frontal, pars Orbitalis)",Inferior_Frontal
+77,a47r,Area anterior 47r,"Area 47 (Inferior Frontal, pars Orbitalis)",Inferior_Frontal
+78,6r,Rostral Area 6,PreMot (PreMotor Cortex),Premotor
+79,IFJa,Area IFJa,IFJ (Inferior Frontal Cortex),Inferior_Frontal
+80,IFJp,Area IFJp,IFJ (Inferior Frontal Cortex),Inferior_Frontal
+81,IFSp,Area IFSp,IFS (Inferior Frontal Sulcus),Inferior_Frontal
+82,IFSa,Area IFSa,IFS (Inferior Frontal Sulcus),Inferior_Frontal
+83,"p9-
+46v",Area posterior  9-46v,"dlPFC (Area 46, Dorsolateral Prefrontal Cortex)",Dorsolateral_Prefrontal
+84,46,Area 46,"dlPFC (Area 46, Dorsolateral Prefrontal Cortex)",Dorsolateral_Prefrontal
+85,"a9-
+46v",Area anterior  9-46v,"dlPFC (Area 46, Dorsolateral Prefrontal Cortex)",Dorsolateral_Prefrontal
+86,9-46d,Area 9-46d,"dlPFC (Area 46, Dorsolateral Prefrontal Cortex)",Dorsolateral_Prefrontal
+87,9a,Area 9 anterior,"dlPFC (Area 9, Dorsolateral Prefrontal)",Dorsolateral_Prefrontal
+88,10v,Area 10v,"OFC (Area 10, OrbitoFrontal Cortex)",Anterior_Cingulate_and_Medial_Prefrontal
+89,a10p,Area anterior 10p,"OFC (Area 10, OrbitoFrontal Cortex)",Orbital_and_Polar_Frontal
+90,10pp,Polar 10p,"OFC (Area 10, OrbitoFrontal Cortex)",Orbital_and_Polar_Frontal
+91,11l,Area 11l,,Orbital_and_Polar_Frontal
+92,13l,Area 13l,,Orbital_and_Polar_Frontal
+93,OFC,Orbital Frontal Complex,,Orbital_and_Polar_Frontal
+94,47s,Area 47s,"Area 47 (Inferior Frontal, pars Orbitalis)",Orbital_and_Polar_Frontal
+95,LIPd,"Area Lateral
+IntraParietal dorsal",IPS (IntraParietal Sulcus),Superior_Parietal
+96,6a,Area 6 anterior,PreMot (PreMotor Cortex),Premotor
+97,i6-8,"Inferior 6-8
+Transitional Area","dlPFC (Area 6-8, Dorsolateral Prefrontal Cortex)",Dorsolateral_Prefrontal
+98,s6-8,"Superior 6-8
+Transitional Area","dlPFC (Area 6-8, Dorsolateral Prefrontal Cortex)",Dorsolateral_Prefrontal
+99,43,Area 43,,Posterior_Opercular
+100,OP4,Area OP4/PV,,Posterior_Opercular
+101,OP1,Area OP1/SII,,Posterior_Opercular
+102,OP2-3,Area OP2-3/VS,,Posterior_Opercular
+103,52,Area 52,,Early_Auditory
+104,RI,RetroInsular Cortex,Early auditory,Early_Auditory
+105,PFcm,Area PFcm,,Early_Auditory
+106,PoI2,Posterior Insular Area 2,,Insular_and_Frontal_Opercular
+107,TA2,Area TA2,TA2 (Auditory Association),Auditory_Association
+108,FOP4,"Frontal OPercular
+Area 4",,Insular_and_Frontal_Opercular
+109,MI,Middle Insular Area,,Insular_and_Frontal_Opercular
+110,Pir,Pirform Cortex,,Insular_and_Frontal_Opercular
+111,AVI,Anterior Ventral Insular Area,,Insular_and_Frontal_Opercular
+112,AAIC,"Anterior Agranular
+Insula Complex",,Insular_and_Frontal_Opercular
+113,FOP1,"Frontal OPercular
+Area 1",,Posterior_Opercular
+114,FOP3,"Frontal OPercular
+Area 3",,Insular_and_Frontal_Opercular
+115,FOP2,"Frontal OPercular
+Area 2",,Insular_and_Frontal_Opercular
+116,PFt,Area PFt,,Inferior_Parietal
+117,AIP,"Anterior IntraParietal
+Area",IPS (IntraParietal Sulcus),Superior_Parietal
+118,EC,Entorhinal Cortex,,Medial_Temporal
+119,PreS,PreSubiculum,,Medial_Temporal
+120,H,Hippocampus,,Medial_Temporal
+121,ProS,ProStriate Area,,Posterior_Cingulate
+122,PeEc,Perirhinal Ectorhinal Cortex,,Medial_Temporal
+123,STGa,Area STGa,STGa (Superior Temporal Cortex - anterior),Auditory_Association
+124,PBelt,ParaBelt Complex,Early auditory,Early_Auditory
+125,A5,Auditory 5 Complex,A5,Auditory_Association
+126,PHA1,"ParaHippocampal
+Area 1",PHA (ParaHippocampal Cortex),Medial_Temporal
+127,PHA3,ParaHippocampal Area 3,PHA (ParaHippocampal Cortex),Medial_Temporal
+128,STSda,Area STSd anterior,STGd (Superior Temporal Cortex - dorsal),Auditory_Association
+129,STSdp,Area STSd posterior,STGd (Superior Temporal Cortex - dorsal),Auditory_Association
+130,STSvp,Area STSv posterior,STSv (Superior Temporal Cortex - ventral),Auditory_Association
+131,TGd,Area TG dorsal,TGd (Lateral Temporal Cortex - dorsal),Lateral_Temporal
+132,TE1a,Area TE1 anterior,TE1 (Middle Temporal Gyrus),Lateral_Temporal
+133,TE1p,Area TE1 posterior,TE1 (Middle Temporal Gyrus),Lateral_Temporal
+134,TE2a,Area TE2 anterior,TE2 (Inferior Temporal Sulcus/Gyrus),Lateral_Temporal
+135,TF,Area TF,,Medial_Temporal
+136,TE2p,Area TE2 posterior,TE2 (Inferior Temporal Sulcus/Gyrus),Lateral_Temporal
+137,PHT,Area PHT,PHT (Middle Temporal Gyrus),Lateral_Temporal
+138,PH,Area PH,PH (Temporal Cortex),MT+_Complex_and_Neighboring_Visual_Areas
+139,TPOJ1,"Area
+TemporoParietoOcci pital Junction 1",TPOJ (Temporo-Parieto-Occipital Junction),Temporo-Parieto-Occipital_Junction
+140,TPOJ2,"Area
+TemporoParietoOcci pital Junction 2",TPOJ (Temporo-Parieto-Occipital Junction),Temporo-Parieto-Occipital_Junction
+141,TPOJ3,"Area
+TemporoParietoOcci pital Junction 3",TPOJ (Temporo-Parieto-Occipital Junction),Temporo-Parieto-Occipital_Junction
+142,DVT,"Dorsal Transitional
+Visual Area",,Posterior_Cingulate
+143,PGp,Area PGp,PG (intermediate Inferior Parietal Cortex),Inferior_Parietal
+144,IP2,Area IntraParietal 2,IP (IntraParietal Cortex) ,Inferior_Parietal
+145,IP1,Area IntraParietal 1,IP (IntraParietal Cortex) ,Inferior_Parietal
+146,IP0,Area IntraParietal 0,IP (IntraParietal Cortex) ,Inferior_Parietal
+147,PFop,Area PF opercular,PF (rostral Inferior Parietal Cortex),Inferior_Parietal
+148,PF,Area PF Complex,PF (rostral Inferior Parietal Cortex),Inferior_Parietal
+149,PFm,Area PFm Complex,PF (rostral Inferior Parietal Cortex),Inferior_Parietal
+150,PGi,Area PGi,PG (intermediate Inferior Parietal Cortex),Inferior_Parietal
+151,PGs,Area PGs,PG (intermediate Inferior Parietal Cortex),Inferior_Parietal
+152,V6A,Area V6A,V6,Dorsal_Stream_Visual
+153,VMV1,"VentroMedial Visual
+Area 1",vmVisual,Ventral_Stream_Visual
+154,VMV3,"VentroMedial Visual
+Area 3",vmVisual,Ventral_Stream_Visual
+155,PHA2,"ParaHippocampal
+Area 2",PHA (ParaHippocampal Cortex),Medial_Temporal
+156,V4t,Area V4t,,MT+_Complex_and_Neighboring_Visual_Areas
+157,FST,Area FST,,MT+_Complex_and_Neighboring_Visual_Areas
+158,V3CD,Area V3CD,V3,MT+_Complex_and_Neighboring_Visual_Areas
+159,LO3,"Area Lateral Occipital
+3",,MT+_Complex_and_Neighboring_Visual_Areas
+160,VMV2,"VentroMedial Visual
+Area 2",vmVisual,Ventral_Stream_Visual
+161,31pd,Area 31pd,PostCin (Post Cingulate Cortex),Posterior_Cingulate
+162,31a,Area 31a,PostCin (Post Cingulate Cortex),Posterior_Cingulate
+163,VVC,Ventral Visual Complex,vVC,Ventral_Stream_Visual
+164,25,Area 25,,Anterior_Cingulate_and_Medial_Prefrontal
+165,s32,Area s32,AntCin (Anterior Cingulate Cortex),Anterior_Cingulate_and_Medial_Prefrontal
+166,pOFC,posterior OFC Complex,,Anterior_Cingulate_and_Medial_Prefrontal
+167,PoI1,"Area Posterior
+Insular 1",,Insular_and_Frontal_Opercular
+168,Ig,"Insular Granular
+Complex",,Insular_and_Frontal_Opercular
+169,FOP5,Area Frontal Opercular 5,,Insular_and_Frontal_Opercular
+170,p10p,Area posterior 10p,"OFC (Area 10, OrbitoFrontal Cortex)",Orbital_and_Polar_Frontal
+171,p47r,Area posterior 47r,"Area 47 (Inferior Frontal, pars Orbitalis)",Inferior_Frontal
+172,TGv,Area TG Ventral,,Lateral_Temporal
+173,MBelt,Medial Belt Complex,Early auditory,Early_Auditory
+174,LBelt,Lateral Belt Complex,Early auditory,Early_Auditory
+175,A4,Auditory 4 Complex,A4,Auditory_Association
+176,STSva,Area STSv anterior,STSv (Superior Temporal Cortex - ventral),Auditory_Association
+177,TE1m,Area TE1 Middle,TE1 (Middle Temporal Gyrus),Lateral_Temporal
+178,PI,Para-Insular Area,PI (ParaInsular),Insular_and_Frontal_Opercular
+179,a32pr,"Area anterior 32
+prime",AntCin (Anterior Cingulate Cortex),Anterior_Cingulate_and_Medial_Prefrontal
+180,p24,Area posterior 24,AntCin (Anterior Cingulate Cortex),Anterior_Cingulate_and_Medial_Prefrontal

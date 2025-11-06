@@ -1,14 +1,55 @@
 # pyright: reportShadowedImports=false
+"""Statistical utilities for neuroimaging analysis.
+
+This module provides functions for:
+- Statistical transformations (log-odds, z-transform averaging)
+- Array-wise correlation (from BrainIAK)
+- Permutation testing (block and timeshift permutations)
+- P-value calculation from null distributions
+"""
+
 import numpy as np
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
-from joblib import Parallel, delayed
-from typing import List, Union, Optional, Callable
+from typing import List, Optional, Callable
+
+
+############################
+#### TRANSFORMATIONS #######
+############################
 
 def log_odds(x: np.ndarray) -> np.ndarray:
-    return np.log((x/ (1-x)))
+    """Compute log-odds transformation.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Array of values between 0 and 1
+
+    Returns
+    -------
+    np.ndarray
+        Log-odds transformed values
+    """
+    return np.log((x / (1 - x)))
+
 
 def ztransform_mean(dss: List[np.ndarray]) -> np.ndarray:
+    """Average correlation coefficients using Fisher z-transformation.
+
+    Transforms correlations to z-scores, averages them, then transforms back.
+    This is the proper way to average correlation coefficients.
+
+    Parameters
+    ----------
+    dss : List[np.ndarray]
+        List of arrays containing correlation coefficients
+
+    Returns
+    -------
+    np.ndarray
+        Averaged correlation coefficients
+    """
     dss = np.stack(dss)
     return np.tanh(np.mean([np.arctanh(ds) for ds in dss], axis=0))
     
@@ -112,133 +153,117 @@ def make_random_indices(n_items: int, n_perms: int, method: str = 'choice', max_
         
     return random_idxs
 
-def block_permutation_test(true: np.ndarray, pred: np.ndarray, metric: Callable, block_size: int = 10, n_perms: int = 1000, padding: bool = True) -> np.ndarray:
-    '''
-    Block permutation test of model predictions
-    Adapted from https://github.com/HuthLab/deep-fMRI-dataset/blob/master/encoding/significance_testing.py
-    '''
+def block_permutation_test(true: np.ndarray, pred: np.ndarray, metric: Callable,
+                          block_size: int = 10, n_perms: int = 1000,
+                          padding: bool = True) -> np.ndarray:
+    """Perform block permutation test of model predictions.
 
-    # if the array can't be evenly divided 
+    This test preserves temporal autocorrelation by permuting blocks of timepoints
+    rather than individual samples. Adapted from the HuthLab deep-fMRI-dataset.
+
+    Parameters
+    ----------
+    true : np.ndarray
+        True values of shape (n_samples, n_features)
+    pred : np.ndarray
+        Predicted values of shape (n_samples, n_features)
+    metric : Callable
+        Function to compute scores, takes (true, pred) as arguments
+    block_size : int, default=10
+        Size of blocks to permute
+    n_perms : int, default=1000
+        Number of permutations to perform
+    padding : bool, default=True
+        If True, pad arrays with random noise to make them divisible by block_size.
+        If False, raise error if not evenly divisible.
+
+    Returns
+    -------
+    np.ndarray
+        Permutation distribution of shape (n_perms, n_features)
+
+    References
+    ----------
+    https://github.com/HuthLab/deep-fMRI-dataset/blob/master/encoding/significance_testing.py
+    """
+    # Check if array can be evenly divided by block_size
     mod = block_size - (true.shape[0] % block_size)
 
-    if (padding and mod):
-        padding = np.random.randn(mod, true.shape[1])
-        true = np.vstack([true, padding])
-        pred = np.vstack([pred, padding])
-    elif (not padding and mod):
-        raise ValueError(f'Supplied array of size {true.shape} needs to be evenly divisible by block_size {block_size}')
-    
-    # set the number of blocks based on size array --> get permutation indices
+    if padding and mod:
+        padding_array = np.random.randn(mod, true.shape[1])
+        true = np.vstack([true, padding_array])
+        pred = np.vstack([pred, padding_array])
+    elif not padding and mod:
+        raise ValueError(
+            f'Supplied array of size {true.shape} needs to be evenly divisible '
+            f'by block_size {block_size}'
+        )
+
+    # Set the number of blocks and generate permutation indices
     n_blocks = int(true.shape[0] / block_size)
-    perm_idxs = make_random_indices(n_items=n_blocks, n_perms=n_perms, method='permutation')
+    perm_idxs = make_random_indices(n_items=n_blocks, n_perms=n_perms,
+                                    method='permutation')
 
-    # decompose into blocks
-    block_true = np.dstack(np.vsplit(true, n_blocks)).transpose((2,0,1))
-#     block_pred = np.dstack(np.vsplit(pred, n_blocks)).transpose((2,0,1))
+    # Decompose into blocks
+    block_true = np.dstack(np.vsplit(true, n_blocks)).transpose((2, 0, 1))
 
-    # jobs = []
     permutations = []
-
     for i, perm in enumerate(perm_idxs):
-        # create job for current iteration
-        # permute true timeseries and compare with predicted
-        # job = delayed(metric)(np.vstack(block_true[perm, ...]), pred)
-        # jobs.append(job)
-
         result = metric(np.vstack(block_true[perm, ...]), pred)
         permutations.append(result)
+        print(f'Finished {i+1}/{n_perms}', flush=True)
 
-        print (f'Finished {i+1}/{n_perms}', flush=True)
-
-    # with Parallel(n_jobs=N_PROC) as parallel:
-    # 	permutations = parallel(jobs)
-        
     permutations = np.stack(permutations)
-    
+
     return permutations
 
-def timeshift_permutation_test(true: np.ndarray, pred: np.ndarray, metric: Callable, n_perms: int = 1000) -> np.ndarray:
-    '''
+def timeshift_permutation_test(true: np.ndarray, pred: np.ndarray, metric: Callable,
+                              n_perms: int = 1000) -> np.ndarray:
+    """Perform timeshift permutation test.
 
-    Timeshift permutation test. Randomly shifts true by some amount of size X and compares to pred
-    '''
-    
-    # set the number of blocks based on size array --> get permutation indices
+    Randomly shifts the true timeseries by a variable amount and compares to predictions.
+    This test accounts for temporal autocorrelation in fMRI data.
+
+    Parameters
+    ----------
+    true : np.ndarray
+        True values of shape (n_samples, n_features)
+    pred : np.ndarray
+        Predicted values of shape (n_samples, n_features)
+    metric : Callable
+        Function to compute scores, takes (true, pred) as arguments
+    n_perms : int, default=1000
+        Number of permutations to perform
+
+    Returns
+    -------
+    np.ndarray
+        Permutation distribution of shape (n_perms, n_features)
+    """
     n_items = int(true.shape[0])
     shift_idxs = make_random_indices(n_items=n_items, n_perms=n_perms, method='choice')
 
-    # Iterate through randomized shifts to create null distribution
-    # random_state = None
-    # distribution = []
-
     permutations = []
-
     for i, shift in enumerate(shift_idxs):
-        # results in a shifted timeseries for the current subject
+        # Shift timeseries: take last 'shift' samples and put them first
         shifted = np.concatenate((true[-shift:, :], true[:-shift, :]))
-
         result = metric(shifted, pred)
         permutations.append(result)
+        print(f'Finished {i+1}/{n_perms}', flush=True)
 
-        print (f'Finished {i+1}/{n_perms}', flush=True)
-
-        # # create job for current iteration
-        # # permute true timeseries and compare with predicted
-        # job = delayed(metric)(shifted, pred)
-        # jobs.append(job)
-
-    # with Parallel(n_jobs=N_PROC) as parallel:
-    # 	permutations = parallel(jobs)
-        
     permutations = np.stack(permutations)
-    
+
     return permutations
-
-    # # for i in np.arange(n_perms):
-
-    # 	# # Random seed to be deterministically re-randomized at each iteration
-    # 	# if isinstance(random_state, np.random.RandomState):
-    # 	# 	prng = random_state
-    # 	# else:
-    # 	# 	prng = np.random.RandomState(random_state)
-
-    # 	# # Get a random set of shifts based on number of TRs
-    # 	# # TLB CHECK IF THIS GENERATES A UNIQUE NUMBER FOR EACH SUBJECT
-    # 	# shift = prng.choice(np.arange(n_points), replace=True)
-
-    # 	# results in a shifted timeseries for the current subject
-    # 	shifted = np.concatenate((true[-shift:, :], true[:-shift, :]))
-
-    # 	# DOUBLECHECK HERE TLB
-    # 	# compute correlation between the shifted timeseries and comparison dataset
-    # 	# results in a correlation value at each voxel
-
-    # 	# change to not requiring a masker --> change output to take an out_fn option (helps for temp writing and parallelization)
-    # 	shift_isc = run_isc(shifted, pred, method=method)
-
-    # 	if scratch_dir:
-    # 		# make a temporary file to save and write to a scratch directory
-    # 		out_fn = os.path.join(scratch_dir, f'distribution-{str(i).zfill(len(str(n_shifts)))}.npy')
-    # 		np.save(out_fn, shift_isc)
-    # 		distribution.append(out_fn)
-    # 	else:
-    # 		distribution.append(shift_isc)
-
-    # 	print (f'Completed {i+1}/{n_shifts}', flush=True)
-
-    # # load the files back in if we have a scratch directory
-    # if scratch_dir:
-    # 	distribution = np.stack([np.load(fn) for fn in distribution])
-
-    # return distribution.squeeze()
 
 
 ##################################
 ##### SIGNIFICANCE FUNCTIONS #####
 ##################################
 
-def p_from_null(observed: np.ndarray, distribution: np.ndarray, side: str = 'two-sided', exact: bool = False, mult_comp_method: Optional[str] = None, axis: Optional[int] = None) -> np.ndarray:
-    """Compute p-value from null distribution
+def p_from_null(observed: np.ndarray, distribution: np.ndarray, side: str = 'two-sided',
+               exact: bool = False, mult_comp_method: Optional[str] = None,
+               axis: Optional[int] = None) -> tuple:
+    """Compute p-values and z-scores from null distribution.
 
     Returns the p-value for an observed test statistic given a null
     distribution. Performs either a 'two-sided' (i.e., two-tailed)
@@ -251,30 +276,37 @@ def p_from_null(observed: np.ndarray, distribution: np.ndarray, side: str = 'two
 
     The implementation is based on the work in [PhipsonSmyth2010]_.
 
+    Parameters
+    ----------
+    observed : np.ndarray
+        Observed test statistic(s)
+    distribution : np.ndarray
+        Null distribution of test statistic
+    side : str, default='two-sided'
+        Perform one-sided ('left' or 'right') or 'two-sided' test
+    exact : bool, default=False
+        If True, compute exact p-values. If False, adjust for observed statistic
+        (prevents p-values of zero).
+    mult_comp_method : str or None, default=None
+        Multiple comparison correction method. Options include 'bonferroni',
+        'fdr_bh' (Benjamini-Hochberg), etc. See statsmodels.stats.multitest.multipletests.
+    axis : int or None, default=None
+        Axis indicating resampling iterations in input distribution
+
+    Returns
+    -------
+    zvals : np.ndarray
+        Z-scores computed from observed vs. distribution
+    p : np.ndarray
+        P-values for observed test statistic based on null distribution
+
+    References
+    ----------
     .. [PhipsonSmyth2010] "Permutation p-values should never be zero:
        calculating exact p-values when permutations are randomly drawn.",
        B. Phipson, G. K., Smyth, 2010, Statistical Applications in Genetics
        and Molecular Biology, 9, 1544-6115.
        https://doi.org/10.2202/1544-6115.1585
-
-    Parameters
-    ----------
-    observed : float
-        Observed test statistic
-
-    distribution : ndarray
-        Null distribution of test statistic
-
-    side : str, default: 'two-sided'
-        Perform one-sided ('left' or 'right') or 'two-sided' test
-
-    axis: None or int, default: None
-        Axis indicating resampling iterations in input distribution
-
-    Returns
-    -------
-    p : float
-        p-value for observed test statistic based on null distribution
     """
 
     if side not in ('two-sided', 'left', 'right'):

@@ -1,49 +1,84 @@
 name: tommy_utils
 channels:
-  - pytorch
-  - huggingface
   - conda-forge
   - defaults
+  # - pytorch
+  # - huggingface
 dependencies:
-  - python=3.9
-  - pytorch
+  # SliceTCA will require Python 3.10 or higher
+  - python=3.11 #=3.9
+
+  # General Packages
+  - jupyter
+  - numpy<2.0.0 #=1.23
+  - pandas #=1.2.2
+  - regex
+  - tqdm
+  - pip
+
+  # Neuroimaging Packages
   - nibabel
   - nilearn
-  - seaborn=0.13.0
-  - gensim
-  - nltk
-  - numpy=1.23
-  - librosa
-  - pandas=1.2.2
+
+  # Plotting Packages
   - matplotlib
-  - regex
-  - moviepy
-  - mesalib
-  - libiconv
-  - vtk==9.1.0=osmesa_py39h8ab48e2_107
+  - seaborn #=0.13.0
   - joypy
-  - pip
-  - statsmodels
+
+  # SurfPlot Packages
+  - vtk>9.4
+  # - mesalib
+  # - libiconv
+  # - vtk==9.2.6=osmesa_py311h1234567_114
+  # - vtk==9.1.0=osmesa_py39h8ab48e2_107
+
+  # Machine Learning Packages
+  - scipy
+  - scikit-learn
+  - pytorch
+  - einops
+
+  # NLP Packages
+  - nltk
+  - spacy
+  - gensim
   - huggingface_hub
   - transformers>=4.51.0 #=4.35.0
-  - scikit-learn
-  - scipy
-  - matplotlib
-  - tqdm
-  - praatio
-  - einops
+  - praatio # For TextGrids
+
+  # Misc
+  - moviepy
+  - statsmodels
+
   - pip:
-    - torchaudio
-    - torchvision
-    - av
-    - torchlens
-    - neuromaps
-    - brainspace
-    - mergedeep
-    - himalaya
-    - pydub
-    # - tensorflow
+    # General Packages
     - natsort
     - sentencepiece
     - transformers_stream_generator
     - fasttext-wheel
+
+    # PyTorch Packages
+    - torchcodec
+    - torchaudio
+    - torchvision
+    - torchlens
+    - open_clip_torch
+
+    # Machine Learning Packages
+    - himalaya
+    - nimfa
+    - slicetca
+
+    # Audio Packages
+    - av
+    - pydub
+    - librosa
+
+    # Neuroimaging Packages
+    - neuromaps
+    - pliers
+    - clarifai
+
+    # Misc Packagesconda
+    - mergedeep
+    - opencv-python

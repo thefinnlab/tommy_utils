@@ -74,10 +74,14 @@ setup(
       'tommy_utils': ['./data/*.txt'],
       },
     install_requires=[
+        'brainspace @ git+https://github.com/thefinnlab/BrainSpace.git',
         'surfplot @ git+https://github.com/thefinnlab/surfplot.git'
     ],
-    dependency_links=['git+https://github.com/thefinnlab/surfplot.git'],
-    python_requires=">=3.9",
+    dependency_links=[
+        'git+https://github.com/thefinnlab/surfplot.git',
+        'git+https://github.com/thefinnlab/BrainSpace.git'
+    ],
+    python_requires=">=3.10",
     license="GNU General Public License Version 2",
     long_description=readme,
     long_description_content_type="text/markdown",

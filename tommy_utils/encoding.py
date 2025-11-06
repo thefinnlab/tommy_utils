@@ -1,18 +1,23 @@
-import os, sys
+import os
 import json
-import pandas as pd
-import numpy as np
 import itertools
 from operator import itemgetter
+
+import numpy as np
+import pandas as pd
+import torch
+import torchvision
+import torchaudio
+import torchlens as tl
+from torchvision import transforms
 
 from sklearn.utils.validation import check_random_state
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import check_cv
-from sklearn.model_selection import KFold
 from sklearn.pipeline import make_pipeline
 
 import himalaya
-from himalaya.backend import get_backend, set_backend
+from himalaya.backend import get_backend
 
 from himalaya.ridge import (
 	ColumnTransformerNoStack,
@@ -20,19 +25,11 @@ from himalaya.ridge import (
 )
 
 from himalaya.kernel_ridge import (
-	KernelRidgeCV, 
-	MultipleKernelRidgeCV, 
-	ColumnKernelizer, 
-	Kernelizer, 
+	KernelRidgeCV,
+	MultipleKernelRidgeCV,
+	ColumnKernelizer,
+	Kernelizer,
 )
-
-import torch
-import torchvision 
-import torchaudio
-
-from torchvision import transforms
-import torch.nn.functional as F
-import torchlens as tl
 
 from .delayer import Delayer
 from .custom_solvers import (
@@ -44,7 +41,7 @@ from .custom_solvers import (
 
 from . import nlp
 
-# modify banded ridge to contain our custom solver
+# Register custom solvers with Himalaya
 BandedRidgeCV.ALL_SOLVERS['group_level_random_search'] = solve_group_level_group_ridge_random_search
 MultipleKernelRidgeCV.ALL_SOLVERS['group_level_random_search'] = solve_group_level_multiple_kernel_ridge_random_search
 
@@ -66,40 +63,65 @@ ENCODING_FEATURES = {
 
 # get path of the encoding_utils file --> find the relative path of the phonemes file
 FILE_DIR = os.path.dirname(os.path.realpath(__file__))
-PHONEMES_FN = os.path.join(FILE_DIR, 'data/cmudict-0.7b.phones.txt')
+PHONEMES_FN = os.path.join(FILE_DIR, 'data/nlp/cmudict-0.7b.phones.txt')
 CMU_PHONEMES = pd.read_csv(PHONEMES_FN, header=None, names=['phoneme', 'type'], sep="\t")
 
+##################################
+##### FEATURE CONFIGURATION ######
+##################################
+
 def get_modality_features(modality):
-	
-	if modality == 'audiovisual':
-		items = ['visual', 'audio', 'language']
-	elif modality == 'audio':
-		items = ['audio', 'language']
-	elif modality == 'text':
-		items = ['language']
-	elif modality == 'visual':
-		items = ['visual']
-	
+	"""Get available feature extractors for a given modality.
+
+	Parameters
+	----------
+	modality : str
+		One of 'audiovisual', 'audio', 'text', or 'visual'
+
+	Returns
+	-------
+	list
+		List of available feature extractor names
+	"""
+	modality_map = {
+		'audiovisual': ['visual', 'audio', 'language'],
+		'audio': ['audio', 'language'],
+		'text': ['language'],
+		'visual': ['visual']
+	}
+
+	items = modality_map.get(modality, [])
 	modality_features = []
-	
+
 	for item in items:
+		if ENCODING_FEATURES.get(item):
+			modality_features.extend(ENCODING_FEATURES[item])
 
-		if not ENCODING_FEATURES[item]:
-			continue
-
-		modality_features.extend(ENCODING_FEATURES[item])
-	
 	return modality_features
 
+##################################
+##### TRANSCRIPT PROCESSING ######
+##################################
+
 def load_gentle_transcript(transcript_fn, start_offset=None):
-	
-	# Load the stimulus transcript
+	"""Load and process a Gentle alignment transcript.
+
+	Parameters
+	----------
+	transcript_fn : str
+		Path to Gentle JSON transcript file
+	start_offset : float, optional
+		Time offset to apply to all timestamps
+
+	Returns
+	-------
+	pd.DataFrame
+		Transcript with columns: word, start, end, punctuation
+	"""
 	with open(transcript_fn) as f:
 		data = json.load(f)
 
 	transcript = data['transcript']
-
-	# Get the transcript as a dataframe
 	df_transcript = pd.json_normalize(data['words'])
 
 	for i, row in df_transcript.iterrows():
@@ -114,123 +136,156 @@ def load_gentle_transcript(transcript_fn, start_offset=None):
 
 	# Interpolate missing times
 	df_transcript['start'] = df_transcript['start'].interpolate()
-
-	# Convert all words to lowercase
 	df_transcript['word'] = df_transcript.word.str.lower()
-	
-	# If offset is necessary to apply to the stimulus
+
+	# Apply time offset if provided
 	if start_offset:
-		df_transcript['start'] = df_transcript['start'] - start_offset
-		df_transcript['end'] = df_transcript['end'] - start_offset
-	
+		df_transcript['start'] -= start_offset
+		df_transcript['end'] -= start_offset
+
 	return df_transcript
 
-def create_phoneme_features(df_transcript):
-	'''
-	converts a gentle transcript phoneme transcription 
-	to a one hot feature space (39 dimensions)
-	'''
+##################################
+##### LANGUAGE FEATURES ##########
+##################################
 
+def create_phoneme_features(df_transcript):
+	"""Convert Gentle transcript to one-hot phoneme features.
+
+	Parameters
+	----------
+	df_transcript : pd.DataFrame
+		Gentle transcript with phoneme alignments
+
+	Returns
+	-------
+	times : np.ndarray
+		Onset times for each phoneme
+	phoneme_features : np.ndarray
+		One-hot encoded phonemes (39 dimensions)
+	"""
 	phoneme_time_features = []
-	
-	# go through each transcribed word
+
 	for i, row in df_transcript.iterrows():
-		# set the start time of the phonemes
+		if row['case'] != 'success' or row['alignedWord'] == '<unk>':
+			continue
+
 		phoneme_start = row['start']
 		word_phonemes = []
 		
-		if row['case'] != 'success' or row['alignedWord'] == '<unk>':
-			continue
-		
 		for item in row['phones']:
-			# get the phoneme discarding gentle's info --> this aligns to CMU dictionary
-			# then turn to one hot vector
 			phoneme = item['phone'].split('_')[0].upper()
 			one_hot_phoneme = np.asarray(CMU_PHONEMES['phoneme'] == phoneme).astype(int)
-		
-			# ensure that vector is truly one hot --> if not skip
+
 			if sum(one_hot_phoneme) != 1:
-				print (f'Word {i} - skipping phoneme: {phoneme}')
+				print(f'Word {i} - skipping phoneme: {phoneme}')
 				phoneme_start += item['duration']
 				continue
-			# assert (sum(one_hot_phoneme) == 1)
-		
-			# then save the phoneme start + one hot vector and increment time
+
 			phoneme_info = (phoneme_start, one_hot_phoneme)
 			word_phonemes.append(phoneme_info)
 			phoneme_start += item['duration']
 
 		phoneme_time_features.append(word_phonemes)
-	
+
 	phoneme_time_features = sum(phoneme_time_features, [])
 	times, phoneme_features = [np.stack(item) for item in zip(*phoneme_time_features)]
 
-	print (f'Phoneme feature space is size: {phoneme_features.shape}')
+	print(f'Phoneme feature space is size: {phoneme_features.shape}')
 
 	return times, phoneme_features
 
 def create_word_features(df_transcript, word_model):
-	'''
-	given a gentle transcript, get word features 
-	using a gensim model
-	'''
+	"""Extract word embeddings from Gensim model.
+
+	Parameters
+	----------
+	df_transcript : pd.DataFrame
+		Gentle transcript
+	word_model : gensim.models
+		Word embedding model (Word2Vec, FastText, etc.)
+
+	Returns
+	-------
+	times : np.ndarray
+		Word onset times
+	word_features : np.ndarray
+		Word embedding vectors
+	"""
 	word_time_features = []
-	
+
 	for i, row in df_transcript.iterrows():
-		
 		word = row['word']
-		
+
+		# Check if word exists in model vocabulary
 		if 'fasttext' in str(type(word_model)) or word in word_model.key_to_index:
 			word_vector = word_model[word]
 		else:
 			continue
-	
+
 		word_time_info = (row['start'], word_vector)
 		word_time_features.append(word_time_info)
-	
+
 	times, word_features = [np.stack(item) for item in zip(*word_time_features)]
 
-	print (f'Word feature space is size: {word_features.shape}')
+	print(f'Word feature space is size: {word_features.shape}')
 
 	return times, word_features
 
 def create_transformer_features(df_transcript, tokenizer, model, window_size=25, bidirectional=False, add_punctuation=False):
-	'''
-	given a gentle transcript and a transformer architecture, get
-	word embeddings for each word (contextualized by a context window)
-	'''
+	"""Extract contextualized word embeddings from transformer models.
+
+	Parameters
+	----------
+	df_transcript : pd.DataFrame
+		Gentle transcript
+	tokenizer : transformers.PreTrainedTokenizer
+		Tokenizer for the model
+	model : transformers.PreTrainedModel
+		Transformer model
+	window_size : int
+		Context window size for contextualization
+	bidirectional : bool
+		Whether to use bidirectional context
+	add_punctuation : bool
+		Whether to include punctuation in context
+
+	Returns
+	-------
+	times : np.ndarray
+		Word onset times
+	word_features : np.ndarray
+		Contextualized embeddings (n_layers, n_words, hidden_size)
+	"""
 	word_time_features = []
 
-	# create a list of indices that we will iterate through to sample the transcript
+	# Create segments for windowed contextualization
 	segments = nlp.get_segment_indices(n_words=len(df_transcript), window_size=window_size, bidirectional=bidirectional)
 
 	for (i, row), segment in zip(df_transcript.iterrows(), segments):
+		print(f'Processing segment {i+1}/{len(df_transcript)}')
 
-		print (f'Processing segment {i+1}/{len(df_transcript)}')
-		
-		# get the prepared input for the word embedding extraction
 		inputs = nlp.transcript_to_input(df_transcript, segment, add_punctuation=add_punctuation)
 
-		# select the last word only to extract embeddings for
-		# returns an array of size sentence x n_layers x size
+		# Extract embeddings for the last word (target word)
 		word_embeddings = nlp.extract_word_embeddings([inputs], tokenizer, model, word_indices=-1)
 		word_embeddings = word_embeddings.squeeze()
-		
+
 		word_time_info = (row['start'], word_embeddings.squeeze())
 		word_time_features.append(word_time_info)
-	
+
 	times, word_features = [np.stack(item) for item in zip(*word_time_features)]
 
-	# move layers to be the first element
+	# Move layers to first dimension: (n_layers, n_words, hidden_size)
 	word_features = np.moveaxis(word_features, 0, 1)
 
-	print (f'Transformer feature space is size: {word_features.shape}')
-	
+	print(f'Transformer feature space is size: {word_features.shape}')
+
 	return times, word_features
 
-###################################
-##### Stuff for vision models #####
-###################################
+##################################
+##### VISION FEATURES ############
+##################################
 
 VISION_MODELS_DICT = {
 	'alexnet': [
@@ -270,29 +325,54 @@ def get_layer_tensors(model_output, flatten=True):
 	return layer_tensors
 
 def chunk_video_clips(decoder, batch_size, trim=None):
-    '''
-    Helper function to gather and transform a videoclips object
-    '''
+	"""Batch video frames from a decoder.
 
-    if trim:
-        idxs = (i for i in range(trim[0], trim[1]))
-    else:
-        idxs = (i for i in range(len(decoder)))
+	Parameters
+	----------
+	decoder : video decoder
+		Video decoder object with frame indexing
+	batch_size : int
+		Number of frames per batch
+	trim : tuple, optional
+		(start, end) frame indices to trim to
 
-    while True:
-        sl = list(itertools.islice(idxs, batch_size))
-        if not sl:
-            break
+	Yields
+	------
+	torch.Tensor
+		Batched frames
+	"""
+	if trim:
+		idxs = (i for i in range(trim[0], trim[1]))
+	else:
+		idxs = (i for i in range(len(decoder)))
 
-        # decoder already has information in the right place
-        frames = [decoder[i] for i in sl]
-        yield torch.stack(frames)
+	while True:
+		sl = list(itertools.islice(idxs, batch_size))
+		if not sl:
+			break
+
+		frames = [decoder[i] for i in sl]
+		yield torch.stack(frames)
 
 def create_vision_features(images, model_name, batch_size=8):
-	'''
-	given a set of frames and the meta 
-	'''
+	"""Extract vision features from video frames.
 
+	Parameters
+	----------
+	images : video decoder
+		Video frame decoder
+	model_name : str
+		Name of vision model ('alexnet', 'resnet50', 'clip')
+	batch_size : int
+		Batch size for processing
+
+	Returns
+	-------
+	times : np.ndarray
+		Frame times in seconds
+	vision_features : np.ndarray or list of np.ndarray
+		Vision features (single array for CLIP, list of arrays for layer-wise models)
+	"""
 	if model_name == 'clip':
 		tokenizer, model = nlp.load_multimodal_model(model_name=model_name, modality='vision')
 	else:
@@ -302,7 +382,7 @@ def create_vision_features(images, model_name, batch_size=8):
 	video_fps = int(images.metadata.average_fps)
 	n_frames = len(images)
 	times = np.arange(0, n_frames / video_fps, 1/video_fps)
-	
+
 	transform = transforms.Compose([
 		transforms.ToPILImage(),
 		transforms.Resize(256),
@@ -310,52 +390,70 @@ def create_vision_features(images, model_name, batch_size=8):
 		transforms.ToTensor(),
 		transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 	])
-	
+
 	vision_features = []
 
 	for i, batch in enumerate(chunk_video_clips(images, batch_size=batch_size)):
-	
-		print (f'Processing batch {i+1}/{len(images)//batch_size}')
-		
-		# pass the frames through the transform 
-		# use torchlens to log the forward pass of the model
-		# batch = torch.stack([transform(x) for x in batch])
+		print(f'Processing batch {i+1}/{len(images)//batch_size}')
+
 		if model_name == 'clip':
 			inputs = tokenizer(images=batch, return_tensors='pt')
 			vision_embeddings = model.get_image_features(**inputs).detach()
+			# Normalize CLIP features
 			vision_embeddings = vision_embeddings / vision_embeddings.norm(p=2, dim=-1, keepdim=True)
 		else:
 			batch = torch.stack([transform(x) for x in batch])
+			# Use torchlens to extract intermediate layer activations
 			model_output = tl.log_forward_pass(model, batch, layers_to_save=model_layers)
 			vision_embeddings = get_layer_tensors(model_output)
 
 		vision_features.append(vision_embeddings)
-	
-	# stack tensors for each layer across the batches
+
+	# Stack features across batches
 	if model_name == 'clip':
 		vision_features = np.vstack(vision_features)
-		print (f'Vision feature space has shape {vision_features.shape}')
+		print(f'Vision feature space has shape {vision_features.shape}')
 	else:
 		vision_features = [np.vstack(item) for item in zip(*vision_features)]
-	
-		print (f'Vision feature space has {len(vision_features)} layers')
-	
+		print(f'Vision feature space has {len(vision_features)} layers')
+
 	return times, vision_features
 
-###################################
-##### Stuff for audio models ######
-###################################
+##################################
+##### AUDIO FEATURES #############
+##################################
 
 def load_torchaudio_model(model_name):
 	bundle = getattr(torchaudio.pipelines, model_name.upper())
 	model = bundle.get_model()
 	return bundle, model
 
-def create_spectral_features(audio, sr, n_fft = 2048, hop_length = 512, n_mels=128):
-	
+def create_spectral_features(audio, sr, n_fft=2048, hop_length=512, n_mels=128):
+	"""Create mel-spectrogram features from audio.
+
+	Parameters
+	----------
+	audio : torch.Tensor
+		Audio waveform
+	sr : int
+		Sample rate
+	n_fft : int
+		FFT window size
+	hop_length : int
+		Hop length between frames
+	n_mels : int
+		Number of mel frequency bins
+
+	Returns
+	-------
+	times : np.ndarray
+		Time points for each spectral frame
+	melspec : np.ndarray
+		Mel-spectrogram features (n_frames, n_mels)
+	"""
 	mel_spectrogram = torchaudio.transforms.MelSpectrogram(
 		sample_rate=sr,
-		center = True,
+		center=True,
 		n_fft=n_fft,
 		hop_length=hop_length,
 		pad_mode="reflect",
@@ -365,21 +463,17 @@ def create_spectral_features(audio, sr, n_fft = 2048, hop_length = 512, n_mels=1
 		mel_scale="htk",
 	)
 
-	# Returns a features x samples matrix
 	melspec = mel_spectrogram(audio).squeeze()
 
-	# Amount of time in the track is audio / sampling rate
-	# Melspectrogram is a number of smoothed samples (evenly distributed in time)
+	# Create evenly-spaced time points for spectrogram frames
 	times = np.linspace(0, audio.shape[-1]/sr, melspec.shape[-1])
-	
-	# Transpose the spectrogram to put timepoints as the first dimension
+
+	# Transpose to (n_frames, n_mels)
 	return times, melspec.T
 
 ##################################
-##### MODEL SETUP FUNCTIONS ######
+##### CROSS-VALIDATION ###########
 ##################################
-
-from sklearn.utils.validation import check_random_state
 
 def generate_leave_one_run_out(n_samples, run_onsets, random_state=None, n_runs_out=1):
 	"""Generate a leave-one-run-out split for cross-validation.
@@ -407,22 +501,17 @@ def generate_leave_one_run_out(n_samples, run_onsets, random_state=None, n_runs_
 	random_state = check_random_state(random_state)
 	
 	n_runs = len(run_onsets)
-	
-	# With permutations, we are sure that all runs are used as validation runs.
-	# However here for n_runs_out > 1, a run can be chosen twice as validation
-	# in the same split.
-	# all_val_runs = np.array(
-	#     [random_state.permutation(n_runs) for _ in range(n_runs_out)])
 
 	if n_runs_out >= len(run_onsets):
 		raise ValueError("More runs requested for validation than there are "
 						 "total runs. Make sure that n_runs_out is less than "
 						 "than the number of runs (e.g., len(run_onsets)).")
 
+	# Generate all combinations of runs for validation
 	all_val_runs = np.array(list(itertools.combinations(range(n_runs), n_runs_out)))
 	all_val_runs = random_state.permutation(all_val_runs)
 
-	print (f'Total number of validation runs: {len(all_val_runs)}')
+	print(f'Total number of validation runs: {len(all_val_runs)}')
 	
 	all_samples = np.arange(n_samples)
 	runs = np.split(all_samples, run_onsets[1:])
@@ -432,46 +521,49 @@ def generate_leave_one_run_out(n_samples, run_onsets, random_state=None, n_runs_
 						 "does not include any repeated index, nor the last "
 						 "index.")
 	
-	for val_runs in all_val_runs: #.T:
-	
+	for val_runs in all_val_runs:
 		train = [runs[jj] for jj in range(n_runs) if jj not in val_runs]
 		val = [runs[jj] for jj in range(n_runs) if jj in val_runs]
 
-		# ensure that we pulled the right number of validation runs
-		assert (len(val) == n_runs_out)
-
-		# stack them horizontally for use in indexing
+		assert len(val) == n_runs_out  # Verify correct number of validation runs
 		train, val = [np.hstack(x) for x in [train, val]]
+		assert not np.isin(train, val).any()  # Ensure no overlap
 
-		# ensure no overlap between sets
-		assert (not np.isin(train, val).any())
-		
 		yield train, val
 
+##################################
+##### MODEL BUILDING #############
+##################################
+
 def create_banded_features(features, feature_names):
-	'''
-	Given a set of arrays (featuers) create prerequisites
-	for banded ridge regression
+	"""Prepare features for banded ridge regression.
+
+	Parameters
+	----------
+	features : list of np.ndarray
+		List of feature arrays for different feature spaces
+	feature_names : list of str
+		Names for each feature space
 
 	Returns
-		- concatenated features across separate feature spaces
-		- list of names of each feature space and the index in 
-			the overall list of feature spaces
-	'''
-	# features = [np.load(fn) for fn in fns]
+	-------
+	features : np.ndarray
+		Concatenated features across all feature spaces
+	feature_space_info : list of tuple
+		List of (name, slice) pairs for each feature space
+	"""
 	features_dim = [feature.shape[1] for feature in features]
-	
-	# create slices by cumulative sum of spaces
+
+	# Create slices for each feature space
 	feature_space_idxs = np.concatenate([[0], np.cumsum(features_dim)])
 	feature_space_slices = [slice(*item) for item in zip(feature_space_idxs[:-1], feature_space_idxs[1:])]
 
-	# then combine with the names of each space
-	assert (len(feature_space_slices) == len(feature_names))
+	assert len(feature_space_slices) == len(feature_names)
 
-	# concatenate the feature spaces together
+	# Concatenate feature spaces horizontally
 	features = np.concatenate(features, axis=1)
 
-	# now pair the feature space info
+	# Pair names with slices
 	feature_space_info = [(name, slice) for name, slice in zip(feature_names, feature_space_slices)]
 
 	return features, feature_space_info
@@ -542,60 +634,77 @@ def create_banded_model(model, delays, feature_space_infos, kernel=None, n_jobs=
 
 	return pipeline
 
-def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,2,3,4], 
+def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,2,3,4],
 	n_iter=20, n_targets_batch=200, n_alphas_batch=5, n_targets_batch_refit=200,
-	Y_in_cpu=False, force_cpu=False, solver="random_search", alphas=np.logspace(1, 20, 20), 
+	Y_in_cpu=False, force_cpu=False, solver="random_search", alphas=np.logspace(1, 20, 20),
 	n_jobs=None, force_banded_ridge=False):
-	'''
-	Builds an encoding model given two lists of equal length:
-		- X: predictors -->
-			- if X is a list of arrays, then all are assumed to come 
-				from the same feature space
-			- if X is a list of lists, then 
-		- Y: values to be predicted 
-		- inner_folds: number of folds within the inner loop to be used
+	"""Build an encoding model pipeline with ridge regression.
 
-	The size of X and Y should be equal
-	
-	The number of elements within each item of X are the number
-	of feature spaces to be used
-	
-	'''
+	Parameters
+	----------
+	X : list of np.ndarray
+		Feature arrays
+	Y : list of np.ndarray
+		Target arrays
+	inner_cv : int or cross-validation generator
+		Inner cross-validation strategy
+	feature_space_infos : list of tuple, optional
+		Feature space names and slices for banded ridge
+	delays : list of int
+		HRF delays to model
+	n_iter : int
+		Number of random search iterations
+	n_targets_batch : int
+		Batch size for targets during CV
+	n_alphas_batch : int
+		Batch size for alphas
+	n_targets_batch_refit : int
+		Batch size for targets during refit
+	Y_in_cpu : bool
+		Keep Y in CPU memory
+	force_cpu : bool
+		Force CPU computation
+	solver : str
+		Solver name ('random_search', 'group_level_random_search', etc.)
+	alphas : np.ndarray
+		Alpha values to search
+	n_jobs : int, optional
+		Number of parallel jobs
+	force_banded_ridge : bool
+		Force banded ridge even when n_samples < n_features
 
-	## Static parameters for solver
+	Returns
+	-------
+	pipeline : sklearn.pipeline.Pipeline
+		Complete encoding pipeline
+	"""
+	# Solver parameters
 	N_TARGETS_BATCH = n_targets_batch
 	N_ALPHAS_BATCH = n_alphas_batch
 	N_TARGETS_BATCH_REFIT = n_targets_batch_refit
-
-	# for multiple kernel ridge
-	N_ITER = n_iter # --> should be higher remember to change
+	N_ITER = n_iter
 	ALPHAS = alphas
 	RANDOM_STATE = 42
 
-	# ensure that X and Y are the same length
+	# Validate input shapes
 	if solver == 'group_level_random_search':
 		assert all([X[0].shape[0] == y.shape[0] for y in Y])
 	else:
-		assert (len(X) == len(Y))
+		assert len(X) == len(Y)
 
 	n_samples = np.concatenate(X).shape[0]
 	n_features = np.concatenate(X).shape[1]
 
-	## Standard parameters
-	# scaler --> zscores the predictors
-	# delayer --> estimates the HRF
+	# Standard preprocessing: demean and add HRF delays
 	scaler = StandardScaler(with_mean=True, with_std=False)
-	delayer = Delayer(delays=delays) # delays are in indices --> needs to be scales to TRs
+	delayer = Delayer(delays=delays)
 
-	# if feature info is provided we have multiple feature spaces and use
-	# banded ridge
+	# Multiple feature spaces: use banded or multiple kernel ridge
 	if feature_space_infos:
 
 		if (n_samples > n_features or force_banded_ridge):
+			print(f'Using banded ridge')
 
-			print (f'Using banded ridge')
-
-			## TLB --> TRY ADDING IN RETURN_WEIGHTS AND SEE WHAT HAPPENS
 			solver_function = BandedRidgeCV.ALL_SOLVERS[solver]
 
 			if solver == 'group_level_random_search':
@@ -624,12 +733,8 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 				n_jobs=n_jobs)
 
 		else:
+			print(f'Using multiple kernel ridge')
 
-			print (f'Using multiple kernel ridge')
-
-			# We use 20 random-search iterations to have a reasonably fast example.
-
-			## TLB --> TRY ADDING IN RETURN_WEIGHTS AND SEE WHAT HAPPENS
 			solver_function = MultipleKernelRidgeCV.ALL_SOLVERS[solver]
 
 			if solver == 'group_level_random_search':
@@ -663,38 +768,55 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None, delays=[1,
 
 			pipeline = create_banded_model(mkr_model, delays=delays, feature_space_infos=feature_space_infos, 
 				kernel="linear", n_jobs=n_jobs, force_cpu=force_cpu)
-	else:       
-		solver_params=dict(n_targets_batch=N_TARGETS_BATCH, n_alphas_batch=N_ALPHAS_BATCH, 
+	# Single feature space: use standard kernel ridge
+	else:
+		solver_params = dict(n_targets_batch=N_TARGETS_BATCH, n_alphas_batch=N_ALPHAS_BATCH,
 						   n_targets_batch_refit=N_TARGETS_BATCH_REFIT)
-		
+
 		ridge = KernelRidgeCV(kernel="linear", alphas=ALPHAS, cv=inner_cv, Y_in_cpu=Y_in_cpu, force_cpu=force_cpu)
-		
+
 		pipeline = make_pipeline(scaler, delayer, ridge)
 
-	# return outer_cv, pipeline
 	return pipeline
 
-#################################
-##### MODEL SAVING FUNCTIONS ####
-#################################
+##################################
+##### MODEL EVALUATION ###########
+##################################
 
 BANDED_RIDGE_MODELS = [
-	'GroupRidgeCV', 
+	'GroupRidgeCV',
 	'BandedRidgeCV',
-	'GroupLevelBandedRidgeCV', 
+	'GroupLevelBandedRidgeCV',
 ]
 
 KERNEL_RIDGE_MODELS = [
-	'KernelRidgeCV', 
+	'KernelRidgeCV',
 	'MultipleKernelRidgeCV',
 	'GroupLevelMultipleKernelRidgeCV'
 ]
 
 def get_all_banded_metrics(pipeline, X_test, Y_test, use_split=False):
+	"""Compute comprehensive metrics for encoding model.
 
+	Parameters
+	----------
+	pipeline : sklearn.pipeline.Pipeline
+		Fitted encoding pipeline
+	X_test : np.ndarray
+		Test features
+	Y_test : np.ndarray
+		Test targets
+	use_split : bool
+		Whether to compute split metrics
+
+	Returns
+	-------
+	results : dict
+		Dictionary containing predictions, correlations, R2, and residuals
+	"""
 	backend = get_backend()
 
-	# cast as same time as pipeleine coefficients 
+	# Get reference array for type casting
 	if pipeline[-1].__class__.__name__ in BANDED_RIDGE_MODELS:
 		ref_arr = pipeline[-1].__dict__['coef_']
 	elif pipeline[-1].__class__.__name__ in KERNEL_RIDGE_MODELS:
@@ -725,7 +847,6 @@ def get_all_banded_metrics(pipeline, X_test, Y_test, use_split=False):
 		results['prediction-split'] = Y_pred_split
 
 	for metric, fx in metrics.items():
-
 		if 'split' in metric:
 			if use_split:
 				score = fx(Y_test, Y_pred)
@@ -736,22 +857,34 @@ def get_all_banded_metrics(pipeline, X_test, Y_test, use_split=False):
 
 		results[metric] = score
 
-	# now calculate residuals
+	# Calculate residuals
 	results['residuals'] = (Y_test - results['prediction'])
 
 	if use_split:
 		results['residuals-split'] = (Y_test - results['prediction-split'])
 
-	# move to cpu and cast as numpy array
+	# Move to CPU and convert to numpy
 	results = {k: np.asarray(backend.to_cpu(v)) for k, v in results.items()}
 
 	return results
 
-def save_model_parameters(pipeline):
-	'''
-	Given a pipeline used to build 
-	'''
+##################################
+##### MODEL PERSISTENCE ##########
+##################################
 
+def save_model_parameters(pipeline):
+	"""Save model parameters to dictionary for serialization.
+
+	Parameters
+	----------
+	pipeline : sklearn.pipeline.Pipeline
+		Fitted encoding pipeline
+
+	Returns
+	-------
+	d : dict
+		Dictionary containing model info and hyperparameters
+	"""
 	backend = get_backend()
 
 	d = {}
@@ -761,16 +894,16 @@ def save_model_parameters(pipeline):
 		'name': pipeline[-1].__class__.__name__,
 	}
 
-	if d['info']['name'] in BANDED_RIDGE_MODELS:    
+	if d['info']['name'] in BANDED_RIDGE_MODELS:
 		d['hyperparameters'] = {
-			'deltas_':backend.to_cpu(pipeline[-1].__dict__['deltas_']),
+			'deltas_': backend.to_cpu(pipeline[-1].__dict__['deltas_']),
 			'coef_': backend.to_cpu(pipeline[-1].__dict__['coef_'])
 		}
-	elif d['info']['name'] in KERNEL_RIDGE_MODELS:  
+	elif d['info']['name'] in KERNEL_RIDGE_MODELS:
 		d['hyperparameters'] = {
-			'deltas_':backend.to_cpu(pipeline[-1].__dict__['deltas_']),
+			'deltas_': backend.to_cpu(pipeline[-1].__dict__['deltas_']),
 			'dual_coef': backend.to_cpu(pipeline[-1].__dict__['dual_coef_'])
-		}  
+		}
 	else:
 		raise ValueError(f'Model must be a form of banded ridge or kernel ridge model')
 
@@ -790,48 +923,71 @@ def load_model_from_parameters(d, args={}):
 	return base_
 
 ##################################
-##### DOWNSAMPLING FUNCTIONS #####
+##### SIGNAL RESAMPLING ##########
 ##################################
 
-## Taken from Huth/Lebel repository for Lancosz filtering
-# Repository found here: https://github.com/HuthLab/deep-fMRI-dataset/blob/master/encoding/ridge_utils/interpdata.py#L154
+# Lanczos interpolation adapted from Huth Lab
+# https://github.com/HuthLab/deep-fMRI-dataset/blob/master/encoding/ridge_utils/interpdata.py
 
 def lanczosinterp2D(data, oldtime, newtime, window=3, cutoff_mult=1.0, rectify=False):
-	"""Interpolates the columns of [data], assuming that the i'th row of data corresponds to
-	oldtime(i). A new matrix with the same number of columns and a number of rows given
-	by the length of [newtime] is returned.
-	
-	The time points in [newtime] are assumed to be evenly spaced, and their frequency will
-	be used to calculate the low-pass cutoff of the interpolation filter.
-	
-	[window] lobes of the sinc function will be used. [window] should be an integer.
+	"""Interpolate data using Lanczos resampling.
+
+	Parameters
+	----------
+	data : np.ndarray
+		Data to interpolate (rows = timepoints, columns = features)
+	oldtime : np.ndarray
+		Original time points
+	newtime : np.ndarray
+		Target time points (evenly spaced)
+	window : int
+		Number of lobes in sinc function
+	cutoff_mult : float
+		Cutoff frequency multiplier
+	rectify : bool
+		Whether to rectify positive and negative components separately
+
+	Returns
+	-------
+	newdata : np.ndarray
+		Interpolated data at new time points
 	"""
-	## Find the cutoff frequency ##
+	# Calculate cutoff frequency from target sampling rate
 	cutoff = 1/np.mean(np.diff(newtime)) * cutoff_mult
-	# print "Doing lanczos interpolation with cutoff=%0.3f and %d lobes." % (cutoff, window)
-	
-	## Build up sinc matrix ##
+
+	# Build sinc interpolation matrix
 	sincmat = np.zeros((len(newtime), len(oldtime)))
 	for ndi in range(len(newtime)):
 		sincmat[ndi,:] = lanczosfun(cutoff, newtime[ndi]-oldtime, window)
-	
+
 	if rectify:
-		newdata = np.hstack([np.dot(sincmat, np.clip(data, -np.inf, 0)), 
+		# Interpolate positive and negative components separately
+		newdata = np.hstack([np.dot(sincmat, np.clip(data, -np.inf, 0)),
 							np.dot(sincmat, np.clip(data, 0, np.inf))])
 	else:
-		## Construct new signal by multiplying the sinc matrix by the data ##
 		newdata = np.dot(sincmat, data)
 
 	return newdata
 
 def lanczosfun(cutoff, t, window=3):
-	"""Compute the lanczos function with some cutoff frequency [B] at some time [t].
-	[t] can be a scalar or any shaped numpy array.
-	If given a [window], only the lowest-order [window] lobes of the sinc function
-	will be non-zero.
+	"""Compute windowed sinc (Lanczos) function.
+
+	Parameters
+	----------
+	cutoff : float
+		Cutoff frequency
+	t : float or np.ndarray
+		Time points
+	window : int
+		Number of lobes (window size)
+
+	Returns
+	-------
+	val : float or np.ndarray
+		Lanczos function values
 	"""
 	t = t * cutoff
 	val = window * np.sin(np.pi*t) * np.sin(np.pi*t/window) / (np.pi**2 * t**2)
 	val[t==0] = 1.0
 	val[np.abs(t)>window] = 0.0
-	return val# / (val.sum() + 1e-10)
+	return val
