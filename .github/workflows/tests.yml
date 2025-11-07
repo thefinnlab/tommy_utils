@@ -33,7 +33,7 @@ jobs:
         print('Package version:', tommy_utils.__version__)
 
         # Test all main modules
-        from tommy_utils import config, encoding, fmri, nlp, visualization, stats, plotting
+        from tommy_utils import config, encoding, fmri, nlp, visualization, stats
         print('✓ All main modules imported')
 
         # Test encoding submodules
@@ -47,11 +47,6 @@ jobs:
         # Test stats
         from tommy_utils.stats import p_from_null, block_permutation_test
         print('✓ Stats functions imported')
-
-        # Test backward compatibility
-        from tommy_utils.plotting import figure_style as fs
-        assert tommy_utils.statistics is tommy_utils.stats
-        print('✓ Backward compatibility verified')
 
         print('All tests passed!')
         "

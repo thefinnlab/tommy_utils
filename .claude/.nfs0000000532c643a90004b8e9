@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//dartfs/rc/lab/F/FinnLab/tommy/dark_matter/code/utils/**)",
+      "Read(//dartfs/rc/lab/F/FinnLab/tommy/atlases/**)",
+      "Bash(tree:*)",
+      "Bash(python -c:*)",
+      "Bash(source ~/miniconda3/etc/profile.d/conda.sh)",
+      "Bash(conda activate:*)",
+      "Bash(conda info:*)",
+      "Bash(conda run:*)",
+      "Bash(archive/pre-refactoring/encoding.py)",
+      "Bash(archive/pre-refactoring/nlp.py)",
+      "Bash(archive/pre-refactoring/atlas.py)",
+      "Bash(archive/pre-refactoring/plotting.py)",
+      "Bash(archive/pre-refactoring/custom_solvers.py)",
+      "Bash(python -m py_compile:*)",
+      "Bash(cat:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

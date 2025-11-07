@@ -7,8 +7,8 @@ This subpackage provides:
 - Word prediction and semantic analysis
 """
 
-# Import everything from nlp_legacy for now (to be refactored later)
-from .nlp_legacy import *
+# Import everything from nlp for now (to be refactored later)
+from .nlp import *
 
 __all__ = [
     # Word embeddings

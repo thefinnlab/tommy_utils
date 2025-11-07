@@ -1,0 +1,23 @@
+[flake8]
+# Flake8 configuration for tommy_utils
+
+# Select critical errors only
+select = E9,F63,F7,F82
+
+# Exclude patterns
+exclude =
+    __pycache__,
+    .git,
+    .github,
+    .pytest_cache,
+    *.egg-info,
+    build,
+    dist,
+    archive,
+    tommy_utils/encoding/solvers/custom_solvers.py
+
+# Maximum line length
+max-line-length = 88
+
+# Ignore specific errors
+ignore = E203,E501,W503

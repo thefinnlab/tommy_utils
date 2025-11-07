@@ -11,8 +11,8 @@ import pandas as pd
 import nibabel as nib
 from nilearn.image import resample_to_img
 
-# Import plotting at runtime to avoid circular imports
-# from .. import plotting
+# Import visualization for surface transformations
+from ..visualization import vol_to_surf, numpy_to_surface
 
 # Get the data directory path relative to this module
 _MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -245,14 +245,14 @@ def load_fedorenko_probabilities(atlas_type='language', target_density='10k', da
         atlas_data = nib.load(prob_top10_fn)
 
         # Convert volume to surface
-        surfs, data = plotting.vol_to_surf(atlas_data, target_density=target_density)
+        surfs, data = vol_to_surf(atlas_data, target_density=target_density)
         probabilities = np.concatenate([v.darrays[0].data for k, v in data.items()])
 
     else:
         raise ValueError(f"Unknown atlas type: {atlas_type}")
 
     if target_density is not None:
-        surfs, data = plotting.numpy_to_surface(probabilities, target_density=target_density)
+        surfs, data = numpy_to_surface(probabilities, target_density=target_density)
         probabilities = np.concatenate([v.darrays[0].data for k, v in data.items()])
 
     # Create labels DataFrame
@@ -306,12 +306,12 @@ def load_fedorenko_parcels(atlas_type='language', target_density='10k', data_dir
     if atlas_type == 'language':
         parcels_fn = os.path.join(data_dir, atlas_fns[atlas_type]['parcels'])
         parcels_nii = nib.load(parcels_fn)
-        _, data = plotting.vol_to_surf(parcels_nii, target_density=target_density, method='nearest')
+        _, data = vol_to_surf(parcels_nii, target_density=target_density, method='nearest')
         parcels = np.concatenate([v.darrays[0].data for k, v in data.items()])
     else:
         parcels_fn = os.path.join(data_dir, atlas_fns[atlas_type]['parcels'])
         parcels_nii = nib.load(parcels_fn)
-        _, data = plotting.vol_to_surf(parcels_nii, target_density=target_density, method='nearest')
+        _, data = vol_to_surf(parcels_nii, target_density=target_density, method='nearest')
         parcels = np.concatenate([v.darrays[0].data for k, v in data.items()])
 
     # Create labels DataFrame
@@ -423,7 +423,7 @@ def load_visual_rois(atlas_type='nsd_streams', target_density='10k', regions=Non
         atlas_data[~mask] = 0
 
     if target_density is not None:
-        surfs, data = plotting.numpy_to_surface(atlas_data, target_density=target_density, method='nearest')
+        surfs, data = numpy_to_surface(atlas_data, target_density=target_density, method='nearest')
         atlas_data = np.concatenate([v.darrays[0].data for k, v in data.items()])
 
     return atlas_data, labels
@@ -606,7 +606,7 @@ def create_atlas_mask(atlas, labels, label_type='Aggregate Label', selected_labe
     # Get indices for selected labels
     all_indices = []
 
-    assert (label_type in labels.columns, f"Label type {label_type} not found in labels")
+    assert label_type in labels.columns, f"Label type {label_type} not found in labels"
 
     idx = [labels[labels[label_type] == label]['Parcel Index'].values
             for label in selected_labels]
