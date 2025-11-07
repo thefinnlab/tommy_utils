@@ -25,6 +25,15 @@ from .features import (
     VISION_MODELS_DICT
 )
 
+# Re-export config model dicts for convenience
+from ..config.models import (
+    ENCODING_FEATURES,
+    WORD_MODELS,
+    CLM_MODELS_DICT,
+    MLM_MODELS_DICT,
+    MULTIMODAL_MODELS_DICT
+)
+
 # Utilities (expose at encoding level for convenience)
 from .utils import (
     get_modality_features,
@@ -53,6 +62,13 @@ __all__ = [
     'solvers',
     'delayer',
     'utils',
+    # Model configuration dicts
+    'ENCODING_FEATURES',
+    'WORD_MODELS',
+    'CLM_MODELS_DICT',
+    'MLM_MODELS_DICT',
+    'MULTIMODAL_MODELS_DICT',
+    'VISION_MODELS_DICT',
     # Feature extraction - language
     'create_phoneme_features',
     'create_word_features',
@@ -60,7 +76,6 @@ __all__ = [
     # Feature extraction - vision
     'create_vision_features',
     'load_torchvision_model',
-    'VISION_MODELS_DICT',
     # Feature extraction - audio
     'create_spectral_features',
     'load_torchaudio_model',

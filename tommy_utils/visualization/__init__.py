@@ -7,15 +7,15 @@ including statistical plots, brain surface/volume plots, and figure styling.
 Modules
 -------
 style : Figure styling utilities
-stats : Statistical plotting functions
+plots : Statistical and general plotting functions
 brain : Brain visualization functions
 """
 
 # Import from style module
 from .style import figure_style
 
-# Import from stats module
-from .stats import (
+# Import from plots module
+from .plots import (
     chunkwise,
     scatter_boxplot,
     kde_boxplot,
@@ -44,7 +44,7 @@ from .brain import (
 __all__ = [
     # Style
     'figure_style',
-    # Stats
+    # Plots
     'chunkwise',
     'scatter_boxplot',
     'kde_boxplot',

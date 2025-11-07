@@ -10,7 +10,6 @@ Major components:
 - fmri: fMRI preprocessing (fMRIPrep, AFNI, atlases)
 - nlp: Natural language processing and transformers
 - visualization: Brain visualization and statistical plots
-- plotting: (Deprecated) Brain visualization and statistical plots - use visualization instead
 - stats: Statistical testing for neuroimaging
 """
 
@@ -23,13 +22,9 @@ from . import visualization
 
 # Import other modules
 from . import (
-	plotting,
 	stats,
 	misc
 )
-
-# Backward compatibility alias
-statistics = stats
 
 # Backward compatibility: expose submodules at top level
 from .fmri import afni, atlas, fmriprep
@@ -48,11 +43,9 @@ __all__ = [
 	'nlp',
 	'visualization',
 	# Other modules
-	'plotting',
 	'stats',
 	'misc',
-	# Backward compatibility
-	'statistics',  # alias for stats
+	# Backward compatibility: top-level access to submodules
 	'afni',
 	'atlas',
 	'delayer',

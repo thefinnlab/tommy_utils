@@ -21,6 +21,8 @@ from neuromaps.transforms import mni152_to_fslr, mni152_to_fsaverage, mni152_to_
 from neuromaps.datasets import fetch_fslr, fetch_fsaverage, fetch_civet
 from collections import defaultdict
 
+from ._helpers import fetch_surface, transform_volume_to_surface, save_and_close_figure, VALID_DENSITIES
+
 
 def plot_brain_volume(ds, vmax, title, cmap, out_fn=None):
     """
@@ -64,9 +66,7 @@ def plot_brain_volume(ds, vmax, title, cmap, out_fn=None):
     fig = plt.colorbar(cm.ScalarMappable(norm=norm, cmap=threshold_cmap), ax=cbar_ax)
 
     #save and clean up all opened figures
-    if out_fn:
-        plt.savefig(out_fn, bbox_inches='tight')
-        plt.close('all')
+    save_and_close_figure(plt, out_fn, transparent=False, dpi=300)
 
 
 def mask_nifti(img, mask):
@@ -144,7 +144,7 @@ def threshold_cbar(cmap, norm, threshold):
     matplotlib.colors.ListedColormap
         Thresholded colormap
     """
-    cmap = plt.get_cmap('RdBu_r')
+    cmap = plt.get_cmap(cmap if isinstance(cmap, str) else 'RdBu_r')
     cmaplist = [cmap(i) for i in range(cmap.N)]
     # set colors to grey for absolute values < threshold
     istart = int(norm(-threshold, clip=True) * (cmap.N - 1))
@@ -195,9 +195,7 @@ def plot_brain_values(ds, title, vmax, surf_mesh='fsaverage5', views=['lateral',
                                 colorbar=colorbar)
 
     #save and clean up all opened figures
-    if out_fn:
-        plt.savefig(out_fn, bbox_inches='tight', transparent=True, dpi=300)
-        plt.close('all')
+    save_and_close_figure(plt, out_fn, transparent=True, dpi=300)
 
 
 def make_layers_dict(data, cmap, alpha=0.75, label=None, color_range=None, cbar=True):
@@ -268,15 +266,7 @@ def create_depth_map(surf_type='fsaverage', target_density='41k'):
     dict
         Layer configuration dictionary for depth map
     """
-    if surf_type == 'fsaverage':
-        assert (target_density in ['3k', '10k', '41k', '164k'])
-        surfaces = fetch_fsaverage(density=target_density)
-    elif surf_type == 'fslr':
-        assert (target_density in ['4k', '8k', '32k', '164k'])
-        surfaces = fetch_fslr(density=target_density)
-    elif surf_type == 'civet':
-        assert (target_density in ['41k', '164k'])
-        surfaces = fetch_civet(density=target_density)
+    surfaces = fetch_surface(surf_type, target_density)
 
     # create the cmap for the depth map
     cmap = plt.get_cmap('Greys_r')
@@ -314,18 +304,8 @@ def vol_to_surf(ds, surf_type='fsaverage', map_type='inflated', target_density='
     tuple
         (surfaces, data) where surfaces are mesh files and data is dict with 'left'/'right' hemispheres
     """
-    if surf_type == 'fsaverage':
-        assert (target_density in ['3k', '10k', '41k', '164k'])
-        surfaces = fetch_fsaverage(density=target_density)
-        data_lh, data_rh = mni152_to_fsaverage(ds, fsavg_density=target_density, method=method)
-    elif surf_type == 'fslr':
-        assert (target_density in ['4k', '8k', '32k', '164k'])
-        surfaces = fetch_fslr(density=target_density)
-        data_lh, data_rh = mni152_to_fslr(ds, fslr_density=target_density, method=method)
-    elif surf_type == 'civet':
-        assert (target_density in ['41k', '164k'])
-        surfaces = fetch_civet(density=target_density)
-        data_lh, data_rh = mni152_to_civet(ds, civet_density=target_density, method=method)
+    surfaces = fetch_surface(surf_type, target_density)
+    data_lh, data_rh = transform_volume_to_surface(ds, surf_type, target_density, method)
 
     surfs = surfaces[map_type]
     data = {'left': data_lh, 'right': data_rh}
@@ -374,15 +354,7 @@ def numpy_to_surface(ds, surf_type='fsaverage', map_type='inflated', target_dens
         data = fsaverage_to_fsaverage(data, target_density=target_density, method=method)
         density = target_density
 
-    if surf_type == 'fsaverage':
-        assert (density in ['3k', '10k', '41k', '164k'])
-        surfaces = fetch_fsaverage(density)
-    elif surf_type == 'fslr':
-        assert (density in ['4k', '8k', '32k', '164k'])
-        surfaces = fetch_fslr(density=density)
-    elif surf_type == 'civet':
-        assert (density in ['41k', '164k'])
-        surfaces = fetch_civet(density=density)
+    surfaces = fetch_surface(surf_type, density)
 
     surfs = surfaces[map_type]
     data_lh, data_rh = data
@@ -467,9 +439,7 @@ def plot_surf_data(surfs, layers_info, surf_type='fslr', views=['lateral', 'medi
         plt.title(title)
 
     #save and clean up all opened figures
-    if out_fn:
-        fig.savefig(out_fn, bbox_inches='tight', transparent=True, dpi=300)
-        plt.close('all')
+    save_and_close_figure(fig, out_fn, transparent=True, dpi=300)
 
     return fig, p
 
@@ -523,7 +493,6 @@ def combine_images(columns, images, row_names=None, column_names=None, title=Non
 
     if row_names:
         for ax, row in zip(np.array(grid.axes_row)[:,0], row_names): # np.array(grid.axes_row)[:,0]
-#             ax.set_title(row)
             ax.annotate(row, xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
                                 xycoords=ax.yaxis.label, textcoords='offset points',
                                 ha='right', va='center', fontsize=fig_size[0])
@@ -548,9 +517,7 @@ def combine_images(columns, images, row_names=None, column_names=None, title=Non
             #0.1375
         fig.suptitle(title, x=0.5, y=0.5 + 0.1125 * len(row_names), fontsize=fig_size[0]+6)
 
-    if out_fn:
-        plt.savefig(out_fn, bbox_inches='tight')
-        plt.close('all')
+    save_and_close_figure(plt, out_fn, transparent=False, dpi=300)
 
     return fig
 
@@ -606,9 +573,8 @@ def draw_umap(data, colors, n_neighbors=15, min_dist=0.1, random_state=42, n_com
         ax = ax.scatter(u[:,0], range(len(u)), c=colors, s=s, cmap=cmap)
     if n_components == 2:
         ax = fig.add_subplot(111)
-        ax = ax.scatter(u[:,0], u[:,1], c=colors, s=s, cmap=cmap) #, edgecolors=(0.5,0.5,0.5))
+        ax = ax.scatter(u[:,0], u[:,1], c=colors, s=s, cmap=cmap)
     if n_components == 3:
-#         ax = plt.Axes3D(fig)
         ax = fig.add_subplot(111, projection='3d')
         ax = ax.scatter(u[:,0], u[:,1], u[:,2], c=colors, s=s, cmap=cmap)
     plt.title(title, fontsize=18)
@@ -651,5 +617,4 @@ def plot_colorbar(vmin, vmax, nticks=5, direction='horizontal', cmap='RdBu_r', o
 
     fig.colorbar(psm, cax=cbar_ax, orientation=direction, ticks=ticker.MaxNLocator(nbins=nticks))
 
-    if out_fn:
-        plt.savefig(out_fn, bbox_inches='tight', transparent=True)
+    save_and_close_figure(plt, out_fn, transparent=True, dpi=300)
