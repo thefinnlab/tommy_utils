@@ -9,6 +9,7 @@ ENCODING_FEATURES = {
     'visual': [
         'alexnet',
         'clip',
+        'motion_energy',
     ],
     'audio': [
         'spectral',

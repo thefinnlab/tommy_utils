@@ -43,6 +43,8 @@ dependencies:
   - spacy
   - gensim
   - huggingface_hub
+  # TLB NOTE INSTALLING TRANSFORMERS 5 PRE-RELEASE
+  # pip install transformers --pre -U
   - transformers>=4.51.0 #=4.35.0
   - praatio # For TextGrids
 
@@ -51,6 +53,9 @@ dependencies:
   - statsmodels
 
   - pip:
+    - scikit-image
+    - pymoten
+    
     # General Packages
     - natsort
     - sentencepiece

@@ -118,6 +118,27 @@ def create_banded_features(features, feature_names):
     return features, feature_space_info
 
 
+def load_banded_features(fns, feature_names):
+    """Load features from files and prepare for banded ridge regression.
+
+    Parameters
+    ----------
+    fns : list of str
+        Paths to .npy files containing feature arrays
+    feature_names : list of str
+        Names for each feature space
+
+    Returns
+    -------
+    features : np.ndarray
+        Concatenated features across all feature spaces
+    feature_space_info : list of tuple
+        List of (name, slice) pairs for each feature space
+    """
+    features = [np.load(fn) for fn in fns]
+    return create_banded_features(features, feature_names)
+
+
 def get_concatenated_data(data, indices, precision='float32'):
     """Concatenate data from specified indices.
 

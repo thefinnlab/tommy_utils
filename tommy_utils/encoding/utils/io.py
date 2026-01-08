@@ -18,7 +18,6 @@ def save_model_parameters(pipeline):
         Dictionary containing model info and hyperparameters
     """
     backend = get_backend()
-
     d = {}
 
     d['info'] = {

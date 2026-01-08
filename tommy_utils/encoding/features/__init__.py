@@ -15,8 +15,14 @@ if TYPE_CHECKING:
     )
     from .vision import (
         create_vision_features,
+        extract_image_features,
+        extract_video_features,
+        extract_multimodal_features,
+        create_motion_energy_features,
+        frames_to_luminance,
         load_torchvision_model,
-        VISION_MODELS_DICT
+        VISION_MODELS_DICT,
+        PYMOTEN_DEFAULT_PARAMS
     )
     from .audio import (
         create_spectral_features,
@@ -37,12 +43,21 @@ def __getattr__(name):
         return locals()[name]
 
     # Vision features
-    elif name in ('create_vision_features', 'load_torchvision_model',
-                  'VISION_MODELS_DICT'):
+    elif name in ('create_vision_features', 'extract_image_features',
+                  'extract_video_features', 'extract_multimodal_features',
+                  'create_motion_energy_features', 'frames_to_luminance',
+                  'load_torchvision_model', 'VISION_MODELS_DICT',
+                  'PYMOTEN_DEFAULT_PARAMS'):
         from .vision import (
             create_vision_features,
+            extract_image_features,
+            extract_video_features,
+            extract_multimodal_features,
+            create_motion_energy_features,
+            frames_to_luminance,
             load_torchvision_model,
-            VISION_MODELS_DICT
+            VISION_MODELS_DICT,
+            PYMOTEN_DEFAULT_PARAMS
         )
         return locals()[name]
 
@@ -64,8 +79,14 @@ __all__ = [
     'create_transformer_features',
     # Vision features
     'create_vision_features',
+    'extract_image_features',
+    'extract_video_features',
+    'extract_multimodal_features',
+    'create_motion_energy_features',
+    'frames_to_luminance',
     'load_torchvision_model',
     'VISION_MODELS_DICT',
+    'PYMOTEN_DEFAULT_PARAMS',
     # Audio features
     'create_spectral_features',
     'load_torchaudio_model',

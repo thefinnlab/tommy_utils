@@ -12,6 +12,7 @@ from .helpers import (
     get_modality_features,
     load_gentle_transcript,
     create_banded_features,
+    load_banded_features,
     get_concatenated_data,
     get_train_test_splits,
     lanczosinterp2D,
@@ -20,6 +21,9 @@ from .helpers import (
 
 # Validation
 from .validation import generate_leave_one_run_out
+
+# Import sklearn's check_cv for backward compatibility
+from sklearn.model_selection import check_cv
 
 # Evaluation
 from .evaluation import (
@@ -39,12 +43,14 @@ __all__ = [
     'get_modality_features',
     'load_gentle_transcript',
     'create_banded_features',
+    'load_banded_features',
     'get_concatenated_data',
     'get_train_test_splits',
     'lanczosinterp2D',
     'lanczosfun',
     # Validation
     'generate_leave_one_run_out',
+    'check_cv',
     # Evaluation
     'get_all_banded_metrics',
     'BANDED_RIDGE_MODELS',
