@@ -22,6 +22,7 @@ from . import visualization
 
 # Import other modules
 from . import (
+	decomp,
 	stats,
 	misc
 )
@@ -43,6 +44,7 @@ __all__ = [
 	'nlp',
 	'visualization',
 	# Other modules
+	'decomp',
 	'stats',
 	'misc',
 	# Backward compatibility: top-level access to submodules

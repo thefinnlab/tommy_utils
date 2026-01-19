@@ -19,40 +19,8 @@ from scipy.special import rel_entr, kl_div
 from scipy import stats
 from scipy.spatial.distance import cdist, pdist
 
-##################################
-##### MODEL CONFIGURATION ########
-##################################
-
-WORD_MODELS = {
-	'glove': 'glove.42B.300d.zip',
-	'word2vec': 'word2vec-google-news-300',
-	'fasttext': 'cc.en.300.bin'
-}
-
-CLM_MODELS_DICT = {
-	'bloom': 'bigscience/bloom-560m',
-	'gpt2': 'gpt2',
-	'gpt2-xl': 'gpt2-xl',
-	'gpt-neo-x': 'EleutherAI/gpt-neo-1.3B',
-	'llama2': 'meta-llama/Llama-2-7b-hf',
-	'mistral': 'mistralai/Mistral-7B-v0.1',
-	'qwen3-8B': 'Qwen/Qwen3-8B',
-	'qwen3-32B': 'Qwen/Qwen3-32B',
-	'llama3.1-8B': 'meta-llama/Llama-3.1-8B',
-	'llama3.1-70B': 'meta-llama/Llama-3.1-70B',
-	'gemma3-1b-pt': 'google/gemma-3-1b-pt'
-}
-
-MLM_MODELS_DICT = {
-	'bert': 'bert-base-uncased',
-	'roberta': 'roberta-base',
-	'electra': 'google/electra-base-generator',
-	'xlm-prophetnet': 'microsoft/xprophetnet-large-wiki100-cased'
-}
-
-MULTIMODAL_MODELS_DICT = {
-	'clip': "openai/clip-vit-base-patch32"
-}
+# Import model configurations
+from ..config.models import WORD_MODELS, CLM_MODELS_DICT, MLM_MODELS_DICT
 
 ##################################
 ##### WORD EMBEDDINGS ############
@@ -242,45 +210,6 @@ def load_mlm_model(model_name, cache_dir=None):
 
 	tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
 	model = AutoModel.from_pretrained(model_name, use_safetensors=True)
-
-	model.eval()
-
-	return tokenizer, model
-
-def load_multimodal_model(model_name, modality, cache_dir=None):
-	"""Load multimodal models (CLIP, etc.).
-
-	Parameters
-	----------
-	model_name : str
-		Model name from MULTIMODAL_MODELS_DICT
-	modality : str
-		Modality to load ('vision' or 'language')
-	cache_dir : str, optional
-		Cache directory for model files
-
-	Returns
-	-------
-	tokenizer : transformers.PreTrainedTokenizer or AutoProcessor
-		Tokenizer/processor for the specified modality
-	model : transformers.PreTrainedModel
-		Multimodal model
-	"""
-	if cache_dir:
-		os.environ['TRANSFORMERS_CACHE'] = cache_dir
-
-	from transformers import AutoTokenizer, AutoProcessor, AutoModel
-
-	if model_name not in MULTIMODAL_MODELS_DICT:
-		print(f'Model not in dictionary - please download and add it to the dictionary')
-		sys.exit(0)
-
-	model = AutoModel.from_pretrained(MULTIMODAL_MODELS_DICT[model_name], use_safetensors=True)
-
-	if modality == 'vision':
-		tokenizer = AutoProcessor.from_pretrained(MULTIMODAL_MODELS_DICT[model_name])
-	elif modality == 'language':
-		tokenizer = AutoTokenizer.from_pretrained(MULTIMODAL_MODELS_DICT[model_name])
 
 	model.eval()
 

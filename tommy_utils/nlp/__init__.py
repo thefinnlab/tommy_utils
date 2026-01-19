@@ -11,6 +11,10 @@ This subpackage provides:
 from .nlp import *
 
 __all__ = [
+    # Model dictionaries
+    'WORD_MODELS',
+    'CLM_MODELS_DICT',
+    'MLM_MODELS_DICT',
     # Word embeddings
     'load_word_model',
     'get_basis_vector',
@@ -21,7 +25,6 @@ __all__ = [
     # Transformer models
     'load_clm_model',
     'load_mlm_model',
-    'load_multimodal_model',
     # Inference
     'get_clm_predictions',
     # Text processing

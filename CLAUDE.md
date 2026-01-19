@@ -175,6 +175,32 @@ For working with brain atlases:
 
 ## Important Implementation Details
 
+### GPU Acceleration for Vision Features
+
+Vision feature extraction functions automatically use GPU if available:
+- `create_vision_features()` - Main dispatcher for all vision models
+- `extract_image_features()` - CNN models (AlexNet, ResNet50)
+- `extract_video_features()` - Temporal video models (X3D)
+- `extract_multimodal_features()` - CLIP multimodal features
+
+GPU usage:
+- By default, automatically detects and uses CUDA if available
+- Pass `device='cuda'` or `device='cpu'` to override automatic selection
+- Models and input tensors are automatically moved to the specified device
+- Outputs are returned on CPU as numpy arrays
+
+Example:
+```python
+# Automatic GPU detection
+times, features = create_vision_features(decoder, 'alexnet')
+
+# Force CPU usage
+times, features = create_vision_features(decoder, 'resnet50', device='cpu')
+
+# Force GPU usage
+times, features = create_vision_features(decoder, 'x3d_s', device='cuda')
+```
+
 ### Himalaya Integration
 
 This package extends Himalaya with custom solvers:

@@ -1,6 +1,7 @@
 """Utility functions for encoding models."""
 
 import json
+import itertools
 import numpy as np
 import pandas as pd
 from operator import itemgetter
@@ -21,7 +22,7 @@ def get_modality_features(modality):
         List of available feature extractor names
     """
     modality_map = {
-        'audiovisual': ['visual', 'audio', 'language'],
+        'audiovisual': ['visual', 'audio', 'language', 'multimodal'],
         'audio': ['audio', 'language'],
         'text': ['language'],
         'visual': ['visual']
@@ -282,3 +283,48 @@ def lanczosfun(cutoff, t, window=3):
     val[t==0] = 1.0
     val[np.abs(t)>window] = 0.0
     return val
+
+
+def get_device(device=None):
+    """Get the device to use for computation.
+
+    Parameters
+    ----------
+    device : str or torch.device, optional
+        Device to use. If None, automatically selects 'cuda' if available, else 'cpu'.
+
+    Returns
+    -------
+    torch.device
+        Device to use for computation
+    """
+    import torch
+    if device is None:
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    return torch.device(device)
+
+
+def chunk_video_clips(decoder, batch_size, trim=None):
+    """Batch video frames from a decoder.
+
+    Parameters
+    ----------
+    decoder : video decoder
+        Video decoder object with frame indexing
+    batch_size : int
+        Number of frames per batch
+    trim : tuple, optional
+        (start, end) frame indices to trim to
+
+    Yields
+    ------
+    torch.Tensor
+        Batched frames
+    """
+    import torch
+    idxs = (i for i in range(trim[0], trim[1])) if trim else (i for i in range(len(decoder)))
+    while True:
+        sl = list(itertools.islice(idxs, batch_size))
+        if not sl:
+            break
+        yield torch.stack([decoder[i] for i in sl])

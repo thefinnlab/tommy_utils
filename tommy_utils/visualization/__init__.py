@@ -21,6 +21,7 @@ from .plots import (
     kde_boxplot,
     scatter_barplot,
     plot_correlation_matrices,
+    plot_regressor_raster,
 )
 
 # Import from brain module
@@ -50,6 +51,7 @@ __all__ = [
     'kde_boxplot',
     'scatter_barplot',
     'plot_correlation_matrices',
+    'plot_regressor_raster',
     # Brain
     'plot_brain_volume',
     'plot_brain_values',

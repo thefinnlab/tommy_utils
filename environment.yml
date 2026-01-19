@@ -55,6 +55,7 @@ dependencies:
   - pip:
     - scikit-image
     - pymoten
+    - scenedetect # Scene Cuts
     
     # General Packages
     - natsort

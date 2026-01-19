@@ -19,10 +19,17 @@ from .features import (
     create_word_features,
     create_transformer_features,
     create_vision_features,
+    create_motion_energy_features,
+    create_scene_cut_features,
     create_spectral_features,
+    create_audio_features,
+    create_multimodal_features,
     load_torchvision_model,
     load_torchaudio_model,
-    VISION_MODELS_DICT
+    load_audio_model,
+    load_multimodal_model,
+    VISION_MODELS_DICT,
+    PYMOTEN_DEFAULT_PARAMS
 )
 
 # Re-export config model dicts for convenience
@@ -31,6 +38,7 @@ from ..config.models import (
     WORD_MODELS,
     CLM_MODELS_DICT,
     MLM_MODELS_DICT,
+    AUDIO_MODELS_DICT,
     MULTIMODAL_MODELS_DICT
 )
 
@@ -69,6 +77,7 @@ __all__ = [
     'WORD_MODELS',
     'CLM_MODELS_DICT',
     'MLM_MODELS_DICT',
+    'AUDIO_MODELS_DICT',
     'MULTIMODAL_MODELS_DICT',
     'VISION_MODELS_DICT',
     # Feature extraction - language
@@ -77,10 +86,18 @@ __all__ = [
     'create_transformer_features',
     # Feature extraction - vision
     'create_vision_features',
+    'create_motion_energy_features',
+    'create_scene_cut_features',
     'load_torchvision_model',
+    'PYMOTEN_DEFAULT_PARAMS',
     # Feature extraction - audio
     'create_spectral_features',
+    'create_audio_features',
     'load_torchaudio_model',
+    'load_audio_model',
+    # Feature extraction - multimodal
+    'create_multimodal_features',
+    'load_multimodal_model',
     # Utilities
     'get_modality_features',
     'load_gentle_transcript',

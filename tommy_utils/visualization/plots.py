@@ -297,6 +297,123 @@ def scatter_barplot(df, x, y, group=None, palette='RdBu_r', ax=None, order=None,
     return ax
 
 
+def plot_regressor_raster(features, times=None, labels=None, cmap='viridis', ax=None,
+                          aspect='auto', xlabel='Time (s)', ylabel='Regressor',
+                          colorbar=True, vmin=None, vmax=None, **kwargs):
+    """
+    Create a raster plot of regressors over time.
+
+    Displays multiple regressors as horizontal bands where color intensity
+    represents the regressor value at each time point. Useful for visualizing
+    encoding model features, stimulus timecourses, or any time-varying signals.
+
+    Parameters
+    ----------
+    features : np.ndarray or list
+        Regressor data. Can be:
+        - 2D array of shape (n_timepoints, n_regressors)
+        - 2D array of shape (n_regressors, n_timepoints) if transposed
+        - List of 1D arrays (will be stacked)
+    times : np.ndarray, optional
+        Time points in seconds. If None, uses sample indices.
+    labels : list of str, optional
+        Labels for each regressor (shown on y-axis)
+    cmap : str, default='viridis'
+        Colormap for the raster plot
+    ax : matplotlib.axes.Axes, optional
+        Axes to plot on. If None, creates new figure.
+    aspect : str or float, default='auto'
+        Aspect ratio of the plot
+    xlabel : str, default='Time (s)'
+        Label for x-axis
+    ylabel : str, default='Regressor'
+        Label for y-axis
+    colorbar : bool, default=True
+        Whether to show a colorbar
+    vmin : float, optional
+        Minimum value for color scale
+    vmax : float, optional
+        Maximum value for color scale
+    **kwargs : dict
+        Additional arguments passed to plt.imshow()
+
+    Returns
+    -------
+    matplotlib.axes.Axes
+        The axes object with the plot
+
+    Examples
+    --------
+    >>> # Plot scene cuts and motion energy over time
+    >>> times, scene_cuts = create_scene_cut_features('video.mp4')
+    >>> times, motion = create_motion_energy_features(decoder)
+    >>> plot_regressor_raster(
+    ...     np.hstack([scene_cuts, motion[:, :5]]),  # First 5 motion filters
+    ...     times=times,
+    ...     labels=['Scene cuts'] + [f'Motion {i}' for i in range(5)]
+    ... )
+
+    >>> # Plot multiple feature types
+    >>> features = [audio_envelope, pitch_contour, scene_cuts.squeeze()]
+    >>> plot_regressor_raster(features, times=times, labels=['Audio', 'Pitch', 'Scenes'])
+    """
+    # Handle list of arrays
+    if isinstance(features, list):
+        features = np.column_stack([np.atleast_2d(f).T if f.ndim == 1 else f for f in features])
+
+    # Ensure features is 2D with shape (n_timepoints, n_regressors)
+    features = np.atleast_2d(features)
+    if features.shape[0] < features.shape[1]:
+        # Assume (n_regressors, n_timepoints) -> transpose
+        features = features.T
+
+    n_timepoints, n_regressors = features.shape
+
+    # Create time array if not provided
+    if times is None:
+        times = np.arange(n_timepoints)
+
+    # Create axes if not provided
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(12, max(3, n_regressors * 0.5)))
+
+    # Create extent for proper axis scaling
+    # extent = [left, right, bottom, top]
+    extent = [times[0], times[-1], n_regressors - 0.5, -0.5]
+
+    # Plot raster
+    im = ax.imshow(
+        features.T,  # Transpose so regressors are on y-axis
+        aspect=aspect,
+        cmap=cmap,
+        extent=extent,
+        interpolation='nearest',
+        vmin=vmin,
+        vmax=vmax,
+        **kwargs
+    )
+
+    # Set labels
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+    # Set y-tick labels if provided
+    if labels is not None:
+        ax.set_yticks(np.arange(n_regressors))
+        ax.set_yticklabels(labels)
+    else:
+        ax.set_yticks(np.arange(n_regressors))
+        ax.set_yticklabels([f'R{i+1}' for i in range(n_regressors)])
+
+    # Add colorbar
+    if colorbar:
+        plt.colorbar(im, ax=ax, shrink=0.8, label='Value')
+
+    remove_top_right_spines(ax)
+
+    return ax
+
+
 def plot_correlation_matrices(out_fn, title, n_values, matrices, labels, idxs, vmax):
     """
     Plot multiple correlation matrices side by side.
