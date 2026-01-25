@@ -19,6 +19,7 @@ from .solvers.custom_solvers import (
     solve_group_level_group_ridge_random_search,
     solve_group_level_multiple_kernel_ridge_random_search
 )
+from himalaya.backend import get_backend
 
 # Register custom solvers with Himalaya
 BandedRidgeCV.ALL_SOLVERS['group_level_random_search'] = (
@@ -288,3 +289,129 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None,
             model, delays, feature_space_infos,
             kernel="linear", n_jobs=n_jobs, force_cpu=force_cpu
         )
+
+
+def refine_encoding_model(fitted_pipeline, X_train, Y_train,
+                          max_iter=10, max_iter_inner_hyper=10,
+                          hyper_gradient_method="direct",
+                          n_targets_batch=200, tol=1e-3,
+                          top_percentile=None, Y_in_cpu=False):
+    """Refine a MultipleKernelRidgeCV model using gradient descent.
+
+    Takes a fitted pipeline (trained with random_search) and refines the
+    hyperparameters using gradient descent. Reuses the preprocessing components
+    from the original pipeline.
+
+    Based on: https://gallantlab.org/himalaya/_auto_examples/multiple_kernel_ridge/plot_mkr_5_refine_results.html
+
+    Parameters
+    ----------
+    fitted_pipeline : sklearn.pipeline.Pipeline
+        Fitted pipeline with MultipleKernelRidgeCV as the last step
+    X_train : np.ndarray
+        Training features (same as used to fit the original model)
+    Y_train : np.ndarray
+        Training targets (same as used to fit the original model)
+    max_iter : int, default=10
+        Maximum gradient descent iterations
+    max_iter_inner_hyper : int, default=10
+        Maximum inner iterations for hyper-gradient solver
+    hyper_gradient_method : str, default="direct"
+        Method for computing hyperparameter gradients ("direct" or "implicit")
+    n_targets_batch : int, default=200
+        Batch size for targets during optimization
+    tol : float, default=1e-3
+        Convergence tolerance
+    top_percentile : float, optional
+        If provided (e.g., 60), only refine top N% of targets by CV score.
+        If None, refine all targets.
+    Y_in_cpu : bool, default=False
+        Keep Y in CPU memory
+
+    Returns
+    -------
+    refined_pipeline : sklearn.pipeline.Pipeline
+        Pipeline with refined hyperparameters
+    target_mask : np.ndarray or None
+        Boolean mask of refined targets (if top_percentile used), else None
+
+    Examples
+    --------
+    >>> # Fit with random search
+    >>> pipeline = build_encoding_pipeline(..., solver="random_search")
+    >>> pipeline.fit(X_train, Y_train)
+    >>>
+    >>> # Refine with gradient descent
+    >>> refined_pipeline, mask = refine_encoding_model(
+    ...     pipeline, X_train, Y_train, max_iter=10, top_percentile=60
+    ... )
+    >>>
+    >>> # Predict
+    >>> Y_pred = pipeline.predict(X_test)
+    >>> if mask is not None:
+    ...     Y_pred[:, mask] = refined_pipeline.predict(X_test)
+    """
+    backend = get_backend()
+
+    # Extract fitted model (last step in pipeline)
+    fitted_model = fitted_pipeline[-1]
+
+    # Check if model is MultipleKernelRidgeCV
+    if not isinstance(fitted_model, MultipleKernelRidgeCV):
+        raise ValueError(
+            "This function only works with MultipleKernelRidgeCV models. "
+            f"Got {type(fitted_model).__name__} instead."
+        )
+
+    if not hasattr(fitted_model, 'deltas_'):
+        raise ValueError("Model must be fitted and have 'deltas_' attribute.")
+
+    # Determine which targets to refine
+    target_mask = None
+    Y_train_subset = Y_train
+    initial_deltas = fitted_model.deltas_
+
+    if top_percentile is not None:
+        # Select top percentile of targets by CV score
+        best_cv_scores = backend.to_numpy(fitted_model.cv_scores_.max(0))
+        threshold = np.percentile(best_cv_scores, 100 - top_percentile)
+        target_mask = best_cv_scores > threshold
+
+        print(f"Refining {target_mask.sum()} / {len(target_mask)} targets "
+              f"(top {top_percentile}%)")
+
+        Y_train_subset = Y_train[:, target_mask]
+        initial_deltas = fitted_model.deltas_[:, target_mask]
+    else:
+        print(f"Refining all {Y_train.shape[1]} targets")
+
+    # Create gradient descent solver parameters
+    solver_params = {
+        'max_iter': max_iter,
+        'max_iter_inner_hyper': max_iter_inner_hyper,
+        'hyper_gradient_method': hyper_gradient_method,
+        'n_targets_batch': n_targets_batch,
+        'tol': tol,
+        'initial_deltas': initial_deltas  # Warm start from random search
+    }
+
+    # Create refined model with hyper_gradient solver
+    refined_model = MultipleKernelRidgeCV(
+        kernels="precomputed",
+        solver='hyper_gradient',
+        solver_params=solver_params,
+        cv=fitted_model.cv,
+        Y_in_cpu=Y_in_cpu
+    )
+
+    # Reuse preprocessing from original pipeline (all steps except the last)
+    preprocessing_steps = fitted_pipeline.steps[:-1]
+    refined_pipeline = make_pipeline(*[step[1] for step in preprocessing_steps],
+                                     refined_model)
+
+    # Fit refined pipeline
+    print("Fitting refined model with gradient descent...")
+    refined_pipeline.fit(X_train, Y_train_subset)
+    print("Refinement complete!")
+
+    return refined_pipeline, target_mask

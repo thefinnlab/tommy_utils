@@ -463,7 +463,8 @@ def create_motion_energy_features(images, batch_size=None, verbose=True, **kwarg
         Video decoder from torchcodec with indexing support
     batch_size : int, optional
         Number of frames to process at once. If None, processes entire video.
-        Use batching for large/high-resolution videos to manage memory.
+        Use batching for large/high-resolution videos to improve processing speed.
+        Batches are padded following pymoten best practices to avoid edge effects.
     verbose : bool, default=True
         Whether to print progress information
     **kwargs : dict
@@ -484,15 +485,31 @@ def create_motion_energy_features(images, batch_size=None, verbose=True, **kwarg
     Returns
     -------
     times : np.ndarray
-        Frame times in seconds
+        Frame times in seconds, properly aligned to input frame indices.
+        If edge frames are dropped, times will reflect the actual frames represented.
     motion_features : np.ndarray
         Motion energy features (n_frames, n_filters)
+
+    Notes
+    -----
+    Pymoten's temporal filters may produce slightly fewer frames than the input video
+    due to edge effects from temporal filtering. The returned times array will always
+    correctly map to the input frame indices that are represented in the features.
+
+    When using batching, this function follows pymoten's recommended approach:
+    https://gallantlab.org/pymoten/auto_examples/introduction/demo_batching.html
+    - Batches are padded by half the filter width to avoid internal edge effects
+    - Only the video start/end edges produce dropped frames
+    - The output matches what you'd get from processing the entire video at once
 
     Examples
     --------
     >>> from torchcodec.decoders import VideoDecoder
     >>> decoder = VideoDecoder("video.mp4", device="cpu")
     >>> times, features = create_motion_energy_features(decoder)
+
+    >>> # Process in batches for faster processing
+    >>> times, features = create_motion_energy_features(decoder, batch_size=500)
 
     >>> # Custom frequencies with batching
     >>> times, features = create_motion_energy_features(
@@ -515,7 +532,6 @@ def create_motion_energy_features(images, batch_size=None, verbose=True, **kwarg
     # Get video metadata
     video_fps = float(images.metadata.average_fps)
     n_frames = images.metadata.num_frames
-    times = np.arange(0, n_frames / video_fps, 1/video_fps)
 
     if verbose:
         print(f'Extracting motion energy from {n_frames} frames at {video_fps} fps')
@@ -544,13 +560,13 @@ def create_motion_energy_features(images, batch_size=None, verbose=True, **kwarg
     if verbose:
         print(f'Created pyramid: {pyramid}')
 
-    # Process video
+    # Process video (with or without batching)
     if batch_size is None or batch_size >= n_frames:
         # Process all frames at once
         if verbose:
             print('Loading all frames...')
 
-        # Directly index decoder to get all frames as tensor, then convert to numpy
+        # Load all frames from decoder
         frames = images[:n_frames].numpy()
 
         # Convert from [T, C, H, W] to [T, H, W, C] if needed
@@ -565,61 +581,123 @@ def create_motion_energy_features(images, batch_size=None, verbose=True, **kwarg
             print(f'Luminance shape: {luminance.shape}')
             print('Computing motion energy features...')
 
+        # Extract motion energy features
         motion_features = pyramid.project_stimulus(luminance)
 
     else:
-        # Process in batches with padding for temporal continuity
+        # Process in batches following pymoten tutorial
+        # https://gallantlab.org/pymoten/auto_examples/introduction/demo_batching.html
         if verbose:
             print(f'Processing in batches of {batch_size} frames...')
 
-        # Determine padding size (needs to cover temporal filter width)
-        filter_temporal_width = params['filter_temporal_width']
-        if filter_temporal_width == 'auto':
-            padding = int(np.ceil(2 * video_fps / 3))
-        else:
-            padding = filter_temporal_width
+        # Get padding window (half the filter width) from pyramid definition
+        filter_temporal_width = pyramid.definition['filter_temporal_width']
+        window = int(np.ceil(filter_temporal_width / 2))
+
+        if verbose:
+            print(f'Filter temporal width: {filter_temporal_width} frames')
+            print(f'Padding window: {window} frames')
 
         motion_features = []
         n_batches = int(np.ceil(n_frames / batch_size))
 
         for batch_idx in range(n_batches):
-            start_idx = batch_idx * batch_size
-            end_idx = min((batch_idx + 1) * batch_size, n_frames)
+            start_frame = batch_idx * batch_size
+            end_frame = min((batch_idx + 1) * batch_size, n_frames)
 
-            # Add padding for temporal continuity (except at video edges)
-            pad_start = max(0, start_idx - padding) if batch_idx > 0 else start_idx
-            pad_end = min(n_frames, end_idx + padding) if batch_idx < n_batches - 1 else end_idx
+            # Add padding: extend boundaries by window size (but respect video edges)
+            batch_start = max(start_frame - window, 0)
+            batch_end = min(end_frame + window, n_frames)
 
             if verbose:
                 print(f'Batch {batch_idx + 1}/{n_batches}: '
-                      f'frames {start_idx}-{end_idx} (padded {pad_start}-{pad_end})')
+                      f'frames {start_frame}-{end_frame} '
+                      f'(with padding: {batch_start}-{batch_end})')
 
-            # Load frames with padding - directly index decoder to get tensor, then convert to numpy
-            frames = images[pad_start:pad_end].numpy()
+            # Load frames with padding
+            frames = images[batch_start:batch_end].numpy()
+
             # Convert from [T, C, H, W] to [T, H, W, C] if needed
             if frames.ndim == 4 and frames.shape[1] in [1, 3]:
                 frames = np.transpose(frames, (0, 2, 3, 1))
 
-            # imagearray2luminance expects uint8 array with shape (nimages, vdim, hdim, color)
+            # Convert to luminance
             target_size = (vdim, hdim) if downsample_factor else None
             luminance = moten.io.imagearray2luminance(frames, size=target_size)
 
-            # Extract features
+            # Extract features for padded batch
             batch_features = pyramid.project_stimulus(luminance)
 
-            # Trim padding from output
-            trim_start = start_idx - pad_start
-            trim_end = trim_start + (end_idx - start_idx)
-            batch_features = batch_features[trim_start:trim_end]
+            # Trim padding from output based on batch position
+            # The key insight: only the first and last batches will have edge effects
+            # Middle batches should return features for all requested frames
+            if batch_idx == 0:
+                # First batch: may have leading edge effects, remove trailing padding
+                # Keep everything from start up to end_frame
+                expected_output = end_frame - start_frame
+                actual_output = batch_features.shape[0]
 
-            motion_features.append(batch_features)
+                # If fewer frames returned, it's due to leading edge effects
+                if actual_output < expected_output + window:
+                    # Take what we got, up to expected_output frames
+                    trimmed = batch_features[:min(expected_output, actual_output)]
+                else:
+                    # Normal case: trim trailing padding
+                    trimmed = batch_features[:expected_output]
+
+            elif batch_idx == n_batches - 1:
+                # Last batch: remove leading padding, may have trailing edge effects
+                leading_padding = start_frame - batch_start
+                trimmed = batch_features[leading_padding:]
+
+            else:
+                # Middle batches: remove both leading and trailing padding
+                # With proper padding, these should not have edge effects
+                leading_padding = start_frame - batch_start
+                expected_output = end_frame - start_frame
+                trimmed = batch_features[leading_padding:leading_padding + expected_output]
+
+            if verbose:
+                print(f'  Output: {batch_features.shape[0]} frames, after trimming: {trimmed.shape[0]} frames')
+
+            motion_features.append(trimmed)
 
         # Concatenate all batches
         motion_features = np.vstack(motion_features)
 
+        if verbose:
+            print(f'Concatenated all batches: {motion_features.shape}')
+
+    # Determine which frames are represented in the output
+    # Pymoten drops frames symmetrically from both edges based on filter temporal width
+    n_output_frames = motion_features.shape[0]
+    frames_dropped = n_frames - n_output_frames
+
+    if frames_dropped > 0:
+        # Frames are dropped symmetrically from beginning and end
+        # The output corresponds to the middle frames of the input
+        frames_dropped_start = frames_dropped // 2
+        frames_dropped_end = frames_dropped - frames_dropped_start
+
+        # Calculate which input frames are represented
+        start_frame = frames_dropped_start
+        end_frame = n_frames - frames_dropped_end
+
+        # Create times array for the actual frames represented
+        # Frame indices: start_frame to end_frame-1
+        times = np.arange(start_frame, end_frame) / video_fps
+    else:
+        # No frames dropped, all frames represented
+        times = np.arange(n_output_frames) / video_fps
+
     if verbose:
         print(f'Motion energy feature shape: {motion_features.shape}')
         print(f'Filters per frame: {motion_features.shape[1]}')
+        if frames_dropped > 0:
+            print(f'Note: Dropped {frames_dropped} edge frames due to temporal filtering')
+            print(f'      ({frames_dropped_start} from start, {frames_dropped_end} from end)')
+            print(f'      Features represent frames {start_frame} to {end_frame-1} (of {n_frames})')
+            print(f'      Time range: {times[0]:.3f}s to {times[-1]:.3f}s')
 
     return times, motion_features
 

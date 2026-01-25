@@ -10,7 +10,7 @@ from ..utils.helpers import get_device, chunk_video_clips
 
 
 def load_multimodal_model(model_name, cache_dir=None):
-    """Load a multimodal model for feature extraction.
+    """Load a multimodal model ford feature extraction.
 
     Parameters
     ----------
@@ -39,10 +39,12 @@ def load_multimodal_model(model_name, cache_dir=None):
     if model_name not in MULTIMODAL_MODELS_DICT:
         raise ValueError(f'Model {model_name} not in MULTIMODAL_MODELS_DICT')
 
+    # For some reason loading model after processor causes nans with video embedding model
+    model = AutoModel.from_pretrained(MULTIMODAL_MODELS_DICT[model_name]) #, use_safetensors=True)
     processor = AutoProcessor.from_pretrained(MULTIMODAL_MODELS_DICT[model_name])
-    model = AutoModel.from_pretrained(MULTIMODAL_MODELS_DICT[model_name], use_safetensors=True)
-    model.eval()
 
+    model.eval()
+    
     return processor, model
 
 

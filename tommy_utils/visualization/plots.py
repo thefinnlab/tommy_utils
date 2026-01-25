@@ -299,7 +299,7 @@ def scatter_barplot(df, x, y, group=None, palette='RdBu_r', ax=None, order=None,
 
 def plot_regressor_raster(features, times=None, labels=None, cmap='viridis', ax=None,
                           aspect='auto', xlabel='Time (s)', ylabel='Regressor',
-                          colorbar=True, vmin=None, vmax=None, **kwargs):
+                          colorbar=True, vmin=None, vmax=None, zscore=False, **kwargs):
     """
     Create a raster plot of regressors over time.
 
@@ -334,6 +334,9 @@ def plot_regressor_raster(features, times=None, labels=None, cmap='viridis', ax=
         Minimum value for color scale
     vmax : float, optional
         Maximum value for color scale
+    zscore : bool, default=False
+        If True, z-score each regressor independently so all are displayed
+        on the same scale (mean=0, std=1)
     **kwargs : dict
         Additional arguments passed to plt.imshow()
 
@@ -368,6 +371,17 @@ def plot_regressor_raster(features, times=None, labels=None, cmap='viridis', ax=
         features = features.T
 
     n_timepoints, n_regressors = features.shape
+
+    # Z-score each regressor if requested
+    if zscore:
+        features = features.copy()  # Don't modify original
+        for i in range(n_regressors):
+            col = features[:, i]
+            std = np.std(col)
+            if std > 0:
+                features[:, i] = (col - np.mean(col)) / std
+            else:
+                features[:, i] = col - np.mean(col)
 
     # Create time array if not provided
     if times is None:
