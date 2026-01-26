@@ -53,7 +53,7 @@ class Delayer(BaseEstimator, TransformerMixin):
         -------
         self : returns an instance of self.
         """
-        X = self._validate_data(X, dtype='numeric')
+        X = check_array(X, dtype='numeric')
         self.n_features_in_ = X.shape[1]
         return self
 

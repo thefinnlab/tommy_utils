@@ -64,7 +64,8 @@ from .utils import (
 # Pipeline building
 from .pipeline import (
     create_banded_model,
-    build_encoding_pipeline
+    build_encoding_pipeline,
+    refine_encoding_model
 )
 
 __all__ = [
@@ -113,6 +114,7 @@ __all__ = [
     # Pipeline
     'create_banded_model',
     'build_encoding_pipeline',
+    'refine_encoding_model',
     # Evaluation
     'get_all_banded_metrics',
     'BANDED_RIDGE_MODELS',

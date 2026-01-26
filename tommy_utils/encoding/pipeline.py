@@ -126,6 +126,7 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None,
                             n_alphas_batch=5, n_targets_batch_refit=200,
                             Y_in_cpu=False, force_cpu=False,
                             solver="random_search",
+                            solver_params=None,
                             alphas=np.logspace(1, 20, 20),
                             n_jobs=None, force_banded_ridge=False):
     """Build an encoding model pipeline with ridge regression.
@@ -162,6 +163,10 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None,
         Force CPU computation
     solver : str
         Solver name ('random_search', 'group_level_random_search', 'hyper_gradient')
+    solver_params : dict, optional
+        Additional solver parameters to override defaults. For hyper_gradient solver,
+        useful keys include: 'hyper_gradient_method' ('direct', 'conjugate_gradient'),
+        'initial_deltas', 'max_iter_inner_hyper', 'tol'.
     alphas : np.ndarray
         Alpha values to search
     n_jobs : int, optional
@@ -267,7 +272,8 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None,
             )
 
         elif solver == 'hyper_gradient':
-            solver_params = {
+            # Default hyper_gradient parameters
+            default_hg_params = {
                 'max_iter': n_iter,
                 'n_targets_batch': n_targets_batch,
                 'tol': 1e-3,
@@ -275,10 +281,13 @@ def build_encoding_pipeline(X, Y, inner_cv, feature_space_infos=None,
                 'max_iter_inner_hyper': 1,
                 'hyper_gradient_method': "direct"
             }
+            # Merge with user-provided params (user params override defaults)
+            if solver_params:
+                default_hg_params.update(solver_params)
 
             model = _create_ridge_model(
                 MultipleKernelRidgeCV,
-                solver, solver_params, inner_cv,
+                solver, default_hg_params, inner_cv,
                 Y_in_cpu=Y_in_cpu,
                 kernels="precomputed"
             )
@@ -373,17 +382,66 @@ def refine_encoding_model(fitted_pipeline, X_train, Y_train,
 
     if top_percentile is not None:
         # Select top percentile of targets by CV score
-        best_cv_scores = backend.to_numpy(fitted_model.cv_scores_.max(0))
+        # cv_scores_ shape is typically (n_iter, n_targets) - take max over iterations
+        cv_scores = backend.to_numpy(fitted_model.cv_scores_)
+        n_targets = Y_train.shape[1]
+
+        # Determine which axis corresponds to targets
+        if cv_scores.shape[0] == n_targets:
+            # Shape is (n_targets, n_iter) - max over axis 1
+            best_cv_scores = cv_scores.max(axis=1)
+        elif cv_scores.shape[1] == n_targets:
+            # Shape is (n_iter, n_targets) - max over axis 0
+            best_cv_scores = cv_scores.max(axis=0)
+        else:
+            raise ValueError(
+                f"cv_scores_ shape {cv_scores.shape} doesn't match n_targets={n_targets}"
+            )
+
         threshold = np.percentile(best_cv_scores, 100 - top_percentile)
         target_mask = best_cv_scores > threshold
-
-        print(f"Refining {target_mask.sum()} / {len(target_mask)} targets "
-              f"(top {top_percentile}%)")
 
         Y_train_subset = Y_train[:, target_mask]
         initial_deltas = fitted_model.deltas_[:, target_mask]
     else:
-        print(f"Refining all {Y_train.shape[1]} targets")
+        target_mask = np.ones(Y_train.shape[1], dtype=bool)
+        Y_train_subset = Y_train
+        initial_deltas = fitted_model.deltas_
+
+    # Convert deltas to numpy for analysis
+    deltas_np = backend.to_numpy(initial_deltas) if hasattr(backend, 'to_numpy') else np.asarray(initial_deltas)
+    print(f"Initial deltas range: [{np.nanmin(deltas_np):.2f}, {np.nanmax(deltas_np):.2f}]")
+
+    # Find targets with valid deltas (no NaN or Inf in any kernel)
+    # Targets with -inf deltas indicate the random search couldn't find good hyperparameters
+    valid_targets = ~np.any(np.isnan(deltas_np) | np.isinf(deltas_np), axis=0)
+    n_invalid = (~valid_targets).sum()
+
+    if n_invalid > 0:
+        print(f"Excluding {n_invalid} targets with NaN/Inf deltas from refinement")
+        # Update masks and subsets to only include valid targets
+        Y_train_subset = np.asarray(Y_train_subset)[:, valid_targets]
+        deltas_np = deltas_np[:, valid_targets]
+        # Update target_mask to reflect which original targets are being refined
+        original_indices = np.where(target_mask)[0]
+        target_mask = np.zeros(len(target_mask), dtype=bool)
+        target_mask[original_indices[valid_targets]] = True
+
+    print(f"Refining {valid_targets.sum()} targets after filtering")
+
+    # Check for NaN/Inf in Y_train_subset
+    Y_subset_np = np.asarray(Y_train_subset)
+    if np.any(np.isnan(Y_subset_np)) or np.any(np.isinf(Y_subset_np)):
+        n_nan_y = np.sum(np.isnan(Y_subset_np))
+        n_inf_y = np.sum(np.isinf(Y_subset_np))
+        print(f"Warning: Y_train has {n_nan_y} NaN and {n_inf_y} Inf values!")
+
+    # Clip to safe range
+    deltas_np = np.clip(deltas_np, -20, 20)
+    print(f"Clipped deltas range: [{deltas_np.min():.2f}, {deltas_np.max():.2f}]")
+
+    # Convert back to backend array
+    initial_deltas = backend.asarray(deltas_np)
 
     # Create gradient descent solver parameters
     solver_params = {
